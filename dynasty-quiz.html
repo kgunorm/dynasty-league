@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dynasty Football Quiz</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0d1b0f;
+      color: #e8f5e9;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Field stripe background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 60px,
+        rgba(255,255,255,0.02) 60px,
+        rgba(255,255,255,0.02) 62px
+      );
+      pointer-events: none;
+    }
+
+    #app {
+      width: 100%;
+      max-width: 720px;
+      padding: 20px;
+    }
+
+    /* ─── SCREENS ─── */
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    /* ─── START SCREEN ─── */
+    #start-screen { text-align: center; }
+
+    .logo {
+      font-size: 4rem;
+      margin-bottom: 8px;
+    }
+
+    h1 {
+      font-size: 2.4rem;
+      font-weight: 800;
+      color: #69f0ae;
+      text-shadow: 0 0 20px rgba(105,240,174,0.4);
+      letter-spacing: -1px;
+    }
+
+    .subtitle {
+      color: #a5d6a7;
+      font-size: 1.1rem;
+      margin: 8px 0 32px;
+    }
+
+    .category-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    .category-card {
+      background: rgba(105,240,174,0.08);
+      border: 1px solid rgba(105,240,174,0.2);
+      border-radius: 12px;
+      padding: 14px;
+      text-align: left;
+    }
+
+    .category-card .icon { font-size: 1.5rem; }
+    .category-card .name { font-weight: 600; color: #69f0ae; font-size: 0.95rem; margin-top: 4px; }
+    .category-card .count { color: #81c784; font-size: 0.8rem; }
+
+    .btn {
+      background: #69f0ae;
+      color: #0d1b0f;
+      border: none;
+      border-radius: 12px;
+      padding: 16px 40px;
+      font-size: 1.1rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.15s;
+      letter-spacing: 0.5px;
+    }
+
+    .btn:hover { background: #b9f6ca; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(105,240,174,0.3); }
+    .btn:active { transform: translateY(0); }
+
+    .btn-outline {
+      background: transparent;
+      border: 2px solid #69f0ae;
+      color: #69f0ae;
+    }
+
+    .btn-outline:hover { background: rgba(105,240,174,0.1); }
+
+    /* ─── QUIZ SCREEN ─── */
+    #quiz-screen { animation: fadeIn 0.3s ease; }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    .quiz-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .progress-wrap { flex: 1; }
+
+    .progress-label {
+      font-size: 0.8rem;
+      color: #81c784;
+      margin-bottom: 6px;
+    }
+
+    .progress-bar {
+      height: 6px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #69f0ae, #00e5ff);
+      border-radius: 99px;
+      transition: width 0.5s ease;
+    }
+
+    .score-badge {
+      background: rgba(105,240,174,0.15);
+      border: 1px solid rgba(105,240,174,0.3);
+      border-radius: 20px;
+      padding: 6px 16px;
+      font-weight: 700;
+      color: #69f0ae;
+      font-size: 0.95rem;
+      margin-left: 16px;
+      white-space: nowrap;
+    }
+
+    .timer-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: 16px;
+    }
+
+    .timer-circle {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 3px solid #69f0ae;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1rem;
+      color: #69f0ae;
+      transition: border-color 0.3s, color 0.3s;
+    }
+
+    .timer-circle.warning { border-color: #ffb74d; color: #ffb74d; }
+    .timer-circle.danger  { border-color: #ef5350; color: #ef5350; }
+
+    .question-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 20px;
+      min-height: 120px;
+    }
+
+    .question-meta {
+      font-size: 0.78rem;
+      color: #69f0ae;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+    }
+
+    .question-text {
+      font-size: 1.25rem;
+      font-weight: 600;
+      line-height: 1.5;
+      color: #fff;
+    }
+
+    .options-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    @media (max-width: 520px) { .options-grid { grid-template-columns: 1fr; } }
+
+    .option-btn {
+      background: rgba(255,255,255,0.06);
+      border: 2px solid rgba(255,255,255,0.12);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: left;
+      cursor: pointer;
+      color: #e8f5e9;
+      font-size: 0.95rem;
+      line-height: 1.4;
+      transition: all 0.15s;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .option-btn:hover:not(:disabled) {
+      background: rgba(105,240,174,0.12);
+      border-color: rgba(105,240,174,0.4);
+      transform: translateY(-1px);
+    }
+
+    .option-btn .letter {
+      background: rgba(255,255,255,0.1);
+      border-radius: 6px;
+      width: 26px;
+      height: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.8rem;
+      flex-shrink: 0;
+    }
+
+    .option-btn.correct {
+      background: rgba(105,240,174,0.2);
+      border-color: #69f0ae;
+      color: #69f0ae;
+    }
+
+    .option-btn.correct .letter { background: #69f0ae; color: #0d1b0f; }
+
+    .option-btn.wrong {
+      background: rgba(239,83,80,0.2);
+      border-color: #ef5350;
+      color: #ef5350;
+    }
+
+    .option-btn.wrong .letter { background: #ef5350; color: #fff; }
+
+    .option-btn:disabled { cursor: default; }
+
+    .feedback-bar {
+      height: 0;
+      overflow: hidden;
+      transition: height 0.3s ease;
+      border-radius: 12px;
+      margin-bottom: 16px;
+    }
+
+    .feedback-bar.show { height: 64px; }
+
+    .feedback-inner {
+      padding: 14px 20px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .feedback-inner.correct-fb { background: rgba(105,240,174,0.15); border: 1px solid rgba(105,240,174,0.3); color: #69f0ae; }
+    .feedback-inner.wrong-fb   { background: rgba(239,83,80,0.15);   border: 1px solid rgba(239,83,80,0.3);   color: #ef9a9a; }
+
+    #next-btn { margin-top: 12px; width: 100%; }
+
+    /* ─── RESULTS SCREEN ─── */
+    #results-screen { text-align: center; animation: fadeIn 0.4s ease; }
+
+    .trophy { font-size: 5rem; margin-bottom: 12px; }
+
+    .result-title {
+      font-size: 2rem;
+      font-weight: 800;
+      color: #69f0ae;
+      margin-bottom: 8px;
+    }
+
+    .result-subtitle {
+      color: #a5d6a7;
+      margin-bottom: 32px;
+      font-size: 1rem;
+    }
+
+    .score-display {
+      background: rgba(105,240,174,0.1);
+      border: 2px solid rgba(105,240,174,0.3);
+      border-radius: 20px;
+      padding: 32px;
+      margin-bottom: 28px;
+    }
+
+    .big-score {
+      font-size: 5rem;
+      font-weight: 900;
+      color: #69f0ae;
+      line-height: 1;
+      text-shadow: 0 0 30px rgba(105,240,174,0.5);
+    }
+
+    .score-denom { font-size: 2rem; color: #81c784; }
+    .score-pct { font-size: 1.2rem; color: #a5d6a7; margin-top: 8px; }
+
+    .stat-row {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      margin-top: 20px;
+    }
+
+    .stat {
+      text-align: center;
+    }
+
+    .stat-val { font-size: 1.8rem; font-weight: 800; color: #69f0ae; }
+    .stat-label { font-size: 0.78rem; color: #81c784; text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+
+    .grade-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #69f0ae, #00e5ff);
+      color: #0d1b0f;
+      font-weight: 900;
+      font-size: 1.4rem;
+      border-radius: 50%;
+      width: 64px;
+      height: 64px;
+      line-height: 64px;
+      margin: 16px auto 0;
+    }
+
+    .result-buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+    .streak-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,183,77,0.15);
+      border: 1px solid rgba(255,183,77,0.3);
+      color: #ffb74d;
+      border-radius: 20px;
+      padding: 4px 14px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+
+    /* ─── COMBO FLASH ─── */
+    .combo-flash {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: linear-gradient(135deg, #69f0ae, #00e5ff);
+      color: #0d1b0f;
+      font-weight: 900;
+      font-size: 1.1rem;
+      border-radius: 12px;
+      padding: 10px 20px;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(-10px);
+      transition: all 0.2s ease;
+      z-index: 100;
+    }
+
+    .combo-flash.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ═══════════════ START SCREEN ═══════════════ -->
+  <div id="start-screen" class="screen active">
+    <div class="logo">🏈</div>
+    <h1>Dynasty IQ Quiz</h1>
+    <p class="subtitle">Test your dynasty football knowledge across 20 questions</p>
+
+    <div class="category-grid">
+      <div class="category-card">
+        <div class="icon">📋</div>
+        <div class="name">Concepts & Rules</div>
+        <div class="count">Taxi squads, formats, startup drafts</div>
+      </div>
+      <div class="category-card">
+        <div class="icon">📈</div>
+        <div class="name">Trade & Value</div>
+        <div class="count">Picks, KTC, positional value</div>
+      </div>
+      <div class="category-card">
+        <div class="icon">🏃</div>
+        <div class="name">Player Knowledge</div>
+        <div class="count">Records, careers, age curves</div>
+      </div>
+      <div class="category-card">
+        <div class="icon">🧠</div>
+        <div class="name">Strategy</div>
+        <div class="count">Roster construction, rebuilds</div>
+      </div>
+    </div>
+
+    <button class="btn" onclick="startQuiz()">Start Quiz &rarr;</button>
+  </div>
+
+  <!-- ═══════════════ QUIZ SCREEN ═══════════════ -->
+  <div id="quiz-screen" class="screen">
+    <div class="quiz-header">
+      <div class="progress-wrap">
+        <div class="progress-label" id="q-label">Question 1 of 20</div>
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:5%"></div></div>
+      </div>
+      <div class="score-badge">⚡ <span id="score-display">0</span></div>
+      <div class="timer-wrap">
+        <div class="timer-circle" id="timer-circle">20</div>
+      </div>
+    </div>
+
+    <div class="question-card">
+      <div class="question-meta" id="q-category">Category</div>
+      <div class="question-text" id="q-text">Question loads here…</div>
+    </div>
+
+    <div class="feedback-bar" id="feedback-bar">
+      <div class="feedback-inner" id="feedback-inner"></div>
+    </div>
+
+    <div class="options-grid" id="options-grid"></div>
+
+    <button class="btn" id="next-btn" style="display:none" onclick="nextQuestion()">Next Question &rarr;</button>
+  </div>
+
+  <!-- ═══════════════ RESULTS SCREEN ═══════════════ -->
+  <div id="results-screen" class="screen">
+    <div class="trophy" id="result-trophy">🏆</div>
+    <div class="result-title" id="result-title">Commissioner-Level</div>
+    <div class="result-subtitle" id="result-subtitle">You really know your dynasty football!</div>
+
+    <div class="score-display">
+      <div class="big-score">
+        <span id="final-score">0</span><span class="score-denom">/20</span>
+      </div>
+      <div class="score-pct" id="final-pct">0% correct</div>
+      <div class="grade-badge" id="grade-badge">A</div>
+      <div class="stat-row">
+        <div class="stat"><div class="stat-val" id="stat-streak">0</div><div class="stat-label">Best Streak</div></div>
+        <div class="stat"><div class="stat-val" id="stat-bonus">0</div><div class="stat-label">Bonus Pts</div></div>
+        <div class="stat"><div class="stat-val" id="stat-total">0</div><div class="stat-label">Total Score</div></div>
+      </div>
+    </div>
+
+    <div class="result-buttons">
+      <button class="btn" onclick="restartQuiz()">Play Again</button>
+      <button class="btn btn-outline" onclick="showStart()">Home</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Combo flash notification -->
+<div class="combo-flash" id="combo-flash"></div>
+
+<script>
+const QUESTIONS = [
+  {
+    category: "Concepts & Rules",
+    question: "What is a 'startup draft' in dynasty fantasy football?",
+    options: [
+      "The initial draft where managers fill all roster spots when a new league forms",
+      "A rookie-only draft held each spring after the NFL draft",
+      "A draft used to replace players who retire mid-season",
+      "A supplemental draft for players dropped on waivers"
+    ],
+    answer: 0,
+    fact: "In a startup, every player is available — it's how a dynasty league is born."
+  },
+  {
+    category: "Concepts & Rules",
+    question: "What is a 'taxi squad' in dynasty football?",
+    options: [
+      "A group of young/unproven players stashed outside the main roster",
+      "A second team you own in a two-league format",
+      "Players rostered but ineligible during the postseason",
+      "A trade block list visible to other managers"
+    ],
+    answer: 0,
+    fact: "Taxi squads let managers stash rookies without burning a main roster spot — key for rebuilding teams."
+  },
+  {
+    category: "Concepts & Rules",
+    question: "What does 'Superflex' (or '2QB') mean in a dynasty league?",
+    options: [
+      "A flex spot that can be filled by any offensive player including QB",
+      "A rule allowing two players to share one roster spot",
+      "A scoring format where all touchdowns are worth 6 points",
+      "A second tight end slot that earns bonus points"
+    ],
+    answer: 0,
+    fact: "Superflex dramatically inflates QB value since starting QBs are limited and the position dominates scoring."
+  },
+  {
+    category: "Concepts & Rules",
+    question: "What is a 'devy' (developmental) draft in dynasty football?",
+    options: [
+      "A draft of college players before they declare for the NFL",
+      "A waiver-wire draft held mid-season",
+      "A supplemental draft for undrafted free agents",
+      "A rookie draft restricted to players with no NFL experience"
+    ],
+    answer: 0,
+    fact: "Devy leagues let managers draft CFB players years before the NFL Draft, adding an extra layer of speculation."
+  },
+  {
+    category: "Concepts & Rules",
+    question: "What does 'orphan team' mean in a dynasty league?",
+    options: [
+      "A team whose manager has left, available for a new owner to take over",
+      "A team that hasn't made the playoffs in 3+ years",
+      "A team with no remaining rookie draft picks",
+      "A newly expanded team added mid-season"
+    ],
+    answer: 0,
+    fact: "Adopting an orphan team can be a great opportunity — especially if the previous manager didn't value picks."
+  },
+  {
+    category: "Trade & Value",
+    question: "What is KeepTradeCut (KTC)?",
+    options: [
+      "A popular dynasty trade value website with crowdsourced player rankings",
+      "A rule limiting how many players you can keep from year to year",
+      "A type of auction draft format",
+      "A site for buying/selling dynasty league buyins"
+    ],
+    answer: 0,
+    fact: "KTC uses user votes to generate real-time dynasty trade values — one of the most-used tools in the hobby."
+  },
+  {
+    category: "Trade & Value",
+    question: "In dynasty rookie drafts, what does '1.01' refer to?",
+    options: [
+      "The first overall pick in the first round of the rookie draft",
+      "A player with a 1.01 fantasy points average",
+      "The top pick in a startup draft",
+      "A trade value score assigned by KTC"
+    ],
+    answer: 0,
+    fact: "Rookie picks are written as [round].[slot], so 1.01 is the most valuable — often the top dynasty asset in a given year."
+  },
+  {
+    category: "Trade & Value",
+    question: "Which position typically commands the highest trade value in a Superflex/2QB dynasty format?",
+    options: [
+      "Quarterback",
+      "Wide Receiver",
+      "Running Back",
+      "Tight End"
+    ],
+    answer: 0,
+    fact: "In Superflex, elite QBs like Josh Allen or Lamar Jackson can be the top assets in the entire league."
+  },
+  {
+    category: "Trade & Value",
+    question: "In standard (1-QB) dynasty, which position is generally considered the most valuable long-term asset?",
+    options: [
+      "Wide Receiver",
+      "Quarterback",
+      "Running Back",
+      "Tight End"
+    ],
+    answer: 0,
+    fact: "WRs peak later, maintain value longer, and the top of the position dominates scoring in PPR formats."
+  },
+  {
+    category: "Trade & Value",
+    question: "What does 'contend vs. rebuild' mean in dynasty strategy?",
+    options: [
+      "Deciding whether to trade veterans for future picks or acquire players to win now",
+      "Choosing between two different scoring formats when joining a league",
+      "A rule about how many seasons you must compete before rebuilding",
+      "A waiver wire priority system for rebuilding teams"
+    ],
+    answer: 0,
+    fact: "Reading your team's window is crucial — trading aging vets for 1sts when you're bad is dynasty 101."
+  },
+  {
+    category: "Player Knowledge",
+    question: "Who holds the NFL single-season receiving yards record?",
+    options: [
+      "Calvin Johnson (1,964 yards in 2012)",
+      "Jerry Rice (1,848 yards in 1995)",
+      "Julio Jones (1,871 yards in 2015)",
+      "Tyreek Hill (1,710 yards in 2021)"
+    ],
+    answer: 0,
+    fact: "Megatron's 2012 season is one of the greatest WR performances in NFL history — a dominant dynasty asset in his prime."
+  },
+  {
+    category: "Player Knowledge",
+    question: "At what age do running backs typically experience the 'dynasty cliff' — a sharp drop in value?",
+    options: [
+      "27–28",
+      "30–31",
+      "25–26",
+      "32–33"
+    ],
+    answer: 0,
+    fact: "RBs over 27 rarely retain dynasty value due to wear-and-tear and shorter careers — age is the enemy at the position."
+  },
+  {
+    category: "Player Knowledge",
+    question: "Which position generally has the longest productive career and therefore the most dynasty-friendly longevity?",
+    options: [
+      "Quarterback",
+      "Wide Receiver",
+      "Running Back",
+      "Tight End"
+    ],
+    answer: 0,
+    fact: "Elite QBs like Brady, Manning, and Brees produced well into their late 30s — rare at any other skill position."
+  },
+  {
+    category: "Player Knowledge",
+    question: "Which running back is most associated with dominating dynasty leagues in the PPR era due to receiving ability?",
+    options: [
+      "Christian McCaffrey",
+      "Adrian Peterson",
+      "LaDainian Tomlinson",
+      "Marshawn Lynch"
+    ],
+    answer: 0,
+    fact: "CMC's elite receiving floor made him arguably the most valuable non-QB asset in dynasty during his peak seasons."
+  },
+  {
+    category: "Player Knowledge",
+    question: "In dynasty rookie drafts, which position is widely considered the most 'bust-prone' at picks outside the top 5?",
+    options: [
+      "Running Back",
+      "Wide Receiver",
+      "Quarterback",
+      "Tight End"
+    ],
+    answer: 0,
+    fact: "RBs are replaced easily and rarely sustain value — later-round RB rookies have very high bust rates in dynasty."
+  },
+  {
+    category: "Strategy",
+    question: "What is 'roster construction' in dynasty fantasy football?",
+    options: [
+      "Strategically balancing a roster by age, position, and timeline",
+      "The number of roster spots each team is allowed",
+      "A draft strategy focused on taking only premium positions",
+      "How you configure your weekly starting lineup"
+    ],
+    answer: 0,
+    fact: "Great dynasty managers think in terms of 'windows' — having young assets develop as veterans peak."
+  },
+  {
+    category: "Strategy",
+    question: "What is 'zero RB' as a startup or draft strategy?",
+    options: [
+      "Avoiding RBs early in favor of WRs, TEs, and QBs, then targeting RBs in later rounds",
+      "Never drafting a running back in any dynasty league",
+      "Starting zero RBs in your weekly lineup in favor of all WRs",
+      "Drafting only rookie RBs who haven't played a snap"
+    ],
+    answer: 0,
+    fact: "Zero RB exploits RB positional scarcity later in the draft while loading up on scarcer WR/TE depth."
+  },
+  {
+    category: "Strategy",
+    question: "Which of these is NOT a common dynasty scoring or format variant?",
+    options: [
+      "Full PPR for QBs only (QB-PPR)",
+      "TEP — Tight End Premium (extra points per reception for TEs)",
+      "IDP — Individual Defensive Players",
+      "Superflex — allowing QB in a flex spot"
+    ],
+    answer: 0,
+    fact: "QB-PPR isn't a real format — but TEP, IDP, and Superflex are all popular ways to spice up dynasty leagues."
+  },
+  {
+    category: "Strategy",
+    question: "What does it mean to 'sell high' on a player in dynasty?",
+    options: [
+      "Trade a player right after a peak performance before regression sets in",
+      "List a player on the trade block at the end of the season",
+      "Auction a player for the maximum blind bid amount",
+      "Trade a player only when they are healthy and producing"
+    ],
+    answer: 0,
+    fact: "Selling high is a core dynasty skill — you want to trade players when others value them most, not when you do."
+  },
+  {
+    category: "Strategy",
+    question: "In dynasty, why are 'first-round rookie picks' considered premium trade currency?",
+    options: [
+      "They offer access to elite prospects and can become the most valuable players in the league",
+      "They can only be used once and cannot be traded again",
+      "They grant priority waiver claims during the season",
+      "They are worth double points in keeper leagues"
+    ],
+    answer: 0,
+    fact: "A 1st-round pick could land the next Justin Jefferson or CeeDee Lamb — the upside is why they're so coveted."
+  }
+];
+
+// ─── State ───
+let currentQ = 0;
+let score = 0;
+let bonusPoints = 0;
+let streak = 0;
+let bestStreak = 0;
+let answered = false;
+let timerInterval = null;
+let timeLeft = 20;
+let shuffledQuestions = [];
+
+// ─── Helpers ───
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function showStart() { show('start-screen'); }
+
+// ─── Quiz flow ───
+function startQuiz() {
+  shuffledQuestions = shuffle(QUESTIONS);
+  currentQ = 0;
+  score = 0;
+  bonusPoints = 0;
+  streak = 0;
+  bestStreak = 0;
+  document.getElementById('score-display').textContent = '0';
+  show('quiz-screen');
+  loadQuestion();
+}
+
+function loadQuestion() {
+  answered = false;
+  const q = shuffledQuestions[currentQ];
+
+  document.getElementById('q-label').textContent = `Question ${currentQ + 1} of ${shuffledQuestions.length}`;
+  document.getElementById('progress-fill').style.width = `${((currentQ) / shuffledQuestions.length) * 100}%`;
+  document.getElementById('q-category').textContent = q.category;
+  document.getElementById('q-text').textContent = q.question;
+
+  // Feedback bar
+  const fb = document.getElementById('feedback-bar');
+  fb.classList.remove('show');
+
+  // Next button
+  document.getElementById('next-btn').style.display = 'none';
+
+  // Render options (shuffled)
+  const grid = document.getElementById('options-grid');
+  grid.innerHTML = '';
+  const letters = ['A', 'B', 'C', 'D'];
+  const indices = shuffle([0, 1, 2, 3]);
+
+  // Store mapping so we know which shuffled index is the correct answer
+  q._shuffledMap = indices; // indices[i] = original index at displayed position i
+
+  indices.forEach((origIdx, displayIdx) => {
+    const btn = document.createElement('button');
+    btn.className = 'option-btn';
+    btn.dataset.origIdx = origIdx;
+    btn.innerHTML = `<span class="letter">${letters[displayIdx]}</span>${q.options[origIdx]}`;
+    btn.onclick = () => selectAnswer(btn, origIdx, q);
+    grid.appendChild(btn);
+  });
+
+  // Timer
+  startTimer();
+}
+
+function startTimer() {
+  clearInterval(timerInterval);
+  timeLeft = 20;
+  const circle = document.getElementById('timer-circle');
+  circle.textContent = timeLeft;
+  circle.className = 'timer-circle';
+
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    circle.textContent = timeLeft;
+
+    if (timeLeft <= 5) circle.className = 'timer-circle danger';
+    else if (timeLeft <= 10) circle.className = 'timer-circle warning';
+
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      if (!answered) timeExpired();
+    }
+  }, 1000);
+}
+
+function timeExpired() {
+  answered = true;
+  streak = 0;
+  const q = shuffledQuestions[currentQ];
+  // Highlight correct answer
+  document.querySelectorAll('.option-btn').forEach(btn => {
+    btn.disabled = true;
+    if (parseInt(btn.dataset.origIdx) === q.answer) btn.classList.add('correct');
+  });
+  showFeedback(false, `⏰ Time's up! Correct: ${q.options[q.answer]}`, q.fact);
+  document.getElementById('next-btn').style.display = 'block';
+}
+
+function selectAnswer(btn, origIdx, q) {
+  if (answered) return;
+  answered = true;
+  clearInterval(timerInterval);
+
+  const correct = origIdx === q.answer;
+
+  // Disable all buttons
+  document.querySelectorAll('.option-btn').forEach(b => {
+    b.disabled = true;
+    if (parseInt(b.dataset.origIdx) === q.answer) b.classList.add('correct');
+  });
+
+  if (correct) {
+    score++;
+    streak++;
+    if (streak > bestStreak) bestStreak = streak;
+
+    // Bonus for speed
+    let bonus = 0;
+    if (timeLeft >= 15) bonus = 3;
+    else if (timeLeft >= 10) bonus = 2;
+    else if (timeLeft >= 5) bonus = 1;
+    bonusPoints += bonus;
+
+    const bonusTxt = bonus > 0 ? ` (+${bonus} speed bonus)` : '';
+    showFeedback(true, `✅ Correct!${bonusTxt} ${streak >= 3 ? `🔥 ${streak} streak!` : ''}`, q.fact);
+
+    if (streak >= 3) showCombo(streak);
+  } else {
+    btn.classList.remove('correct');
+    btn.classList.add('wrong');
+    streak = 0;
+    showFeedback(false, `❌ Wrong! Correct: ${q.options[q.answer]}`, q.fact);
+  }
+
+  document.getElementById('score-display').textContent = score;
+  document.getElementById('next-btn').style.display = 'block';
+}
+
+function showFeedback(correct, msg, fact) {
+  const bar = document.getElementById('feedback-bar');
+  const inner = document.getElementById('feedback-inner');
+  inner.className = 'feedback-inner ' + (correct ? 'correct-fb' : 'wrong-fb');
+  inner.innerHTML = `<div><div>${msg}</div><div style="font-size:0.82rem;opacity:0.8;margin-top:3px;font-weight:400">${fact}</div></div>`;
+  bar.classList.add('show');
+}
+
+function showCombo(streak) {
+  const flash = document.getElementById('combo-flash');
+  const msgs = { 3: '🔥 On Fire! 3 in a row!', 4: '⚡ 4-Streak!', 5: '🚀 5-Streak! Unstoppable!', 6: '👑 6-Streak! Commissioner Mode!', 7: '💎 7-Streak! Dynasty God!' };
+  flash.textContent = msgs[streak] || `🏆 ${streak}-Streak!`;
+  flash.classList.add('show');
+  setTimeout(() => flash.classList.remove('show'), 2000);
+}
+
+function nextQuestion() {
+  currentQ++;
+  if (currentQ >= shuffledQuestions.length) {
+    showResults();
+  } else {
+    // Re-animate question card
+    const screen = document.getElementById('quiz-screen');
+    screen.style.animation = 'none';
+    screen.offsetHeight; // reflow
+    screen.style.animation = '';
+    loadQuestion();
+  }
+}
+
+function showResults() {
+  show('results-screen');
+
+  const pct = Math.round((score / shuffledQuestions.length) * 100);
+  const totalScore = score * 10 + bonusPoints;
+
+  document.getElementById('final-score').textContent = score;
+  document.getElementById('final-pct').textContent = `${pct}% correct`;
+  document.getElementById('stat-streak').textContent = bestStreak;
+  document.getElementById('stat-bonus').textContent = bonusPoints;
+  document.getElementById('stat-total').textContent = totalScore;
+
+  const tiers = [
+    { min: 90, trophy: '🏆', title: 'Commissioner-Level IQ', sub: 'You run the league and the knowledge. Absolute dynasty royalty.', grade: 'A+' },
+    { min: 75, trophy: '🥇', title: 'Dynasty Veteran', sub: 'You know your stuff. Trade partners fear you.', grade: 'A' },
+    { min: 60, trophy: '🥈', title: 'Solid Roster Builder', sub: 'Above average. A few more seasons and you\'ll be elite.', grade: 'B' },
+    { min: 45, trophy: '🥉', title: 'Developing Manager', sub: 'Some good instincts, but the studs are still learning.', grade: 'C' },
+    { min: 0,  trophy: '📋', title: 'Dynasty Rookie', sub: 'Everyone starts somewhere. Go read some trade value charts!', grade: 'D' },
+  ];
+
+  const tier = tiers.find(t => pct >= t.min);
+  document.getElementById('result-trophy').textContent = tier.trophy;
+  document.getElementById('result-title').textContent = tier.title;
+  document.getElementById('result-subtitle').textContent = tier.sub;
+  document.getElementById('grade-badge').textContent = tier.grade;
+}
+
+function restartQuiz() {
+  show('quiz-screen');
+  startQuiz();
+}
+</script>
+</body>
+</html>

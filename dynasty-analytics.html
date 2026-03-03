@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>The Dynasty League – Analytics</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0a0f0b;color:#e8f5e9;min-height:100vh}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(90deg,transparent,transparent 80px,rgba(255,255,255,.018) 80px,rgba(255,255,255,.018) 81px);pointer-events:none}
+
+/* NAV */
+nav{background:rgba(0,0,0,.5);border-bottom:1px solid rgba(105,240,174,.15);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;backdrop-filter:blur(10px)}
+.nav-logo{font-size:1.1rem;font-weight:800;color:#69f0ae}
+.nav-links{display:flex;gap:6px;flex-wrap:wrap}
+.nav-link{background:rgba(105,240,174,.08);border:1px solid rgba(105,240,174,.2);color:#a5d6a7;border-radius:8px;padding:6px 14px;font-size:.8rem;font-weight:600;cursor:pointer;transition:all .15s;text-decoration:none}
+.nav-link:hover,.nav-link.active{background:rgba(105,240,174,.18);color:#69f0ae}
+
+/* MAIN */
+.container{max-width:1100px;margin:0 auto;padding:24px 16px}
+.section{margin-bottom:48px}
+h2{font-size:1.4rem;font-weight:800;color:#69f0ae;margin-bottom:16px;display:flex;align-items:center;gap:10px}
+h2 span{font-size:1.2rem}
+
+/* HERO */
+.hero{text-align:center;padding:40px 16px 32px;border-bottom:1px solid rgba(105,240,174,.1);margin-bottom:32px}
+.hero h1{font-size:2.2rem;font-weight:900;color:#69f0ae;text-shadow:0 0 30px rgba(105,240,174,.3)}
+.hero p{color:#81c784;margin-top:6px;font-size:1rem}
+.hero-badges{display:flex;gap:10px;justify-content:center;margin-top:16px;flex-wrap:wrap}
+.badge{background:rgba(105,240,174,.1);border:1px solid rgba(105,240,174,.25);border-radius:20px;padding:5px 14px;font-size:.82rem;color:#a5d6a7}
+.you-badge{background:rgba(0,229,255,.12);border-color:rgba(0,229,255,.3);color:#00e5ff;font-weight:700}
+
+/* TABLES */
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th{color:#69f0ae;font-weight:700;text-align:left;padding:10px 12px;border-bottom:2px solid rgba(105,240,174,.2);white-space:nowrap;font-size:.78rem;text-transform:uppercase;letter-spacing:.5px;cursor:pointer;user-select:none}
+th:hover{color:#b9f6ca}
+td{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.05);color:#e0e0e0}
+tr:hover td{background:rgba(255,255,255,.03)}
+.you-row td{background:rgba(0,229,255,.05)!important;font-weight:600}
+.you-row td:first-child{color:#00e5ff}
+.rank{color:#666;font-size:.8rem}
+.team-name-cell{font-weight:600}
+.owner-cell{color:#81c784;font-size:.8rem}
+.wins{color:#69f0ae;font-weight:700}
+.losses{color:#ef9a9a}
+.pts{font-weight:600}
+.pts-against{color:#888}
+
+/* LUCK METER */
+.luck-bar{display:inline-flex;align-items:center;gap:6px}
+.luck-dot{width:8px;height:8px;border-radius:50%}
+.luck-lucky{background:#69f0ae}
+.luck-unlucky{background:#ef5350}
+.luck-neutral{background:#888}
+.luck-val.lucky{color:#69f0ae}
+.luck-val.unlucky{color:#ef5350}
+
+/* WEEK CHART */
+.week-chart-wrap{overflow-x:auto;padding-bottom:8px}
+.week-chart{display:grid;gap:4px;min-width:600px}
+.chart-row{display:flex;align-items:center;gap:8px}
+.chart-label{width:120px;font-size:.75rem;color:#81c784;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}
+.chart-bars{display:flex;gap:3px;flex:1}
+.chart-bar{height:20px;border-radius:3px;min-width:2px;transition:opacity .2s;position:relative;cursor:pointer}
+.chart-bar:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:#1a2e1a;border:1px solid rgba(105,240,174,.3);color:#e8f5e9;padding:4px 8px;border-radius:6px;font-size:.72rem;white-space:nowrap;z-index:10;pointer-events:none}
+.chart-bar.win-bar{background:#69f0ae}
+.chart-bar.loss-bar{background:#ef5350}
+.chart-bar.you-bar{outline:2px solid #00e5ff}
+
+/* CARDS */
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
+.card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:20px;transition:border-color .2s}
+.card:hover{border-color:rgba(105,240,174,.25)}
+.card.you-card{border-color:rgba(0,229,255,.3);background:rgba(0,229,255,.04)}
+.card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+.card-owner{font-weight:700;color:#e8f5e9;font-size:.95rem}
+.card-team{color:#69f0ae;font-size:.8rem;margin-top:2px}
+.card-record{text-align:right}
+.card-wins{font-size:1.1rem;font-weight:800;color:#69f0ae}
+.card-pf{font-size:.78rem;color:#81c784;margin-top:2px}
+.need-tag{display:inline-block;font-size:.7rem;font-weight:700;border-radius:6px;padding:2px 8px;margin:2px 3px 2px 0;text-transform:uppercase;letter-spacing:.5px}
+.need-critical{background:rgba(239,83,80,.2);color:#ef9a9a;border:1px solid rgba(239,83,80,.3)}
+.need-moderate{background:rgba(255,183,77,.15);color:#ffcc80;border:1px solid rgba(255,183,77,.25)}
+.need-strength{background:rgba(105,240,174,.12);color:#a5d6a7;border:1px solid rgba(105,240,174,.2)}
+.need-text{font-size:.82rem;color:#b0bec5;line-height:1.55;margin-top:10px}
+
+/* YOUR TEAM DEEP DIVE */
+.deep-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:600px){.deep-grid{grid-template-columns:1fr}}
+.stat-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:16px}
+.stat-card-label{font-size:.72rem;color:#81c784;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.stat-card-val{font-size:1.8rem;font-weight:800;color:#69f0ae}
+.stat-card-sub{font-size:.78rem;color:#888;margin-top:3px}
+
+/* PICKS */
+.picks-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.pick-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;font-size:.82rem}
+.pick-own{background:rgba(105,240,174,.08);border:1px solid rgba(105,240,174,.2)}
+.pick-given{background:rgba(239,83,80,.08);border:1px solid rgba(239,83,80,.2)}
+.pick-recv{background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.2)}
+.pick-badge{font-weight:800;font-size:.78rem;border-radius:6px;padding:2px 8px;white-space:nowrap}
+.badge-1{background:#69f0ae;color:#0a0f0b}
+.badge-2{background:#42a5f5;color:#0a0f0b}
+.badge-3{background:#ffa726;color:#0a0f0b}
+.badge-4{background:#ab47bc;color:#fff}
+.pick-desc{color:#b0bec5;flex:1}
+.pick-dir-in{color:#69f0ae;font-size:.7rem;font-weight:700}
+.pick-dir-out{color:#ef9a9a;font-size:.7rem;font-weight:700}
+
+/* MINI ROSTER */
+.pos-section{margin-bottom:10px}
+.pos-label{font-size:.7rem;color:#69f0ae;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.player-chip{display:inline-block;background:rgba(255,255,255,.06);border-radius:6px;padding:3px 8px;font-size:.75rem;color:#e0e0e0;margin:2px}
+
+/* HIDDEN SECTIONS */
+[data-section]{display:none}
+[data-section].visible{display:block}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">🏈 Dynasty League 2025</div>
+  <div class="nav-links">
+    <a class="nav-link active" onclick="showSection('standings')">Standings</a>
+    <a class="nav-link" onclick="showSection('luck')">Luck&nbsp;Report</a>
+    <a class="nav-link" onclick="showSection('weeks')">Weekly</a>
+    <a class="nav-link" onclick="showSection('needs')">Team Needs</a>
+    <a class="nav-link" onclick="showSection('myteam')">My Team</a>
+    <a class="nav-link" onclick="showSection('picks')">Pick Capital</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <h1>The Dynasty League</h1>
+  <p>2025 Season · 12 Teams · Standard Scoring · 14-Week Regular Season</p>
+  <div class="hero-badges">
+    <div class="badge">Season: Complete</div>
+    <div class="badge">FAAB: $125</div>
+    <div class="badge">Roster: 27–29 spots</div>
+    <div class="badge you-badge">You: KeviNorm (kflem20)</div>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ════ STANDINGS ════ -->
+<div data-section="standings" class="visible section">
+  <h2><span>📊</span> Final Standings</h2>
+  <div style="overflow-x:auto">
+  <table id="standings-table">
+    <thead>
+      <tr>
+        <th onclick="sortTable('rank')">#</th>
+        <th onclick="sortTable('team')">Team</th>
+        <th onclick="sortTable('wins')">W</th>
+        <th onclick="sortTable('losses')">L</th>
+        <th onclick="sortTable('pct')">Win%</th>
+        <th onclick="sortTable('pf')">PF</th>
+        <th onclick="sortTable('pa')">PA</th>
+        <th onclick="sortTable('diff')">+/-</th>
+        <th onclick="sortTable('ppg')">PPG</th>
+      </tr>
+    </thead>
+    <tbody id="standings-body"></tbody>
+  </table>
+  </div>
+  <p style="color:#555;font-size:.75rem;margin-top:10px">Click column headers to sort</p>
+</div>
+
+<!-- ════ LUCK REPORT ════ -->
+<div data-section="luck" class="section">
+  <h2><span>🎲</span> Luck Report – All-Play vs Actual Record</h2>
+  <p style="color:#81c784;font-size:.85rem;margin-bottom:16px">All-play record = how you'd do if you played every other team each week. Difference reveals scheduling luck.</p>
+  <div style="overflow-x:auto">
+  <table id="luck-table">
+    <thead>
+      <tr>
+        <th>Team</th>
+        <th>Actual W-L</th>
+        <th>All-Play W-L</th>
+        <th>All-Play%</th>
+        <th>Expected Wins</th>
+        <th>Luck</th>
+        <th>Verdict</th>
+      </tr>
+    </thead>
+    <tbody id="luck-body"></tbody>
+  </table>
+  </div>
+</div>
+
+<!-- ════ WEEKLY ════ -->
+<div data-section="weeks" class="section">
+  <h2><span>📅</span> Weekly Scoring — All 14 Weeks</h2>
+  <p style="color:#81c784;font-size:.85rem;margin-bottom:12px">Green = won matchup · Red = lost matchup · Outlined = KeviNorm (you)</p>
+  <div class="week-chart-wrap">
+    <div class="week-chart" id="week-chart"></div>
+  </div>
+</div>
+
+<!-- ════ TEAM NEEDS ════ -->
+<div data-section="needs" class="section">
+  <h2><span>🔍</span> Team Needs Analysis</h2>
+  <div class="cards-grid" id="needs-cards"></div>
+</div>
+
+<!-- ════ MY TEAM ════ -->
+<div data-section="myteam" class="section">
+  <h2><span>⭐</span> Your Team Deep Dive — KeviNorm (kflem20)</h2>
+  <div class="deep-grid" style="margin-bottom:20px">
+    <div class="stat-card"><div class="stat-card-label">Record</div><div class="stat-card-val">7–7</div><div class="stat-card-sub">6th place</div></div>
+    <div class="stat-card"><div class="stat-card-label">Points For</div><div class="stat-card-val">1,661</div><div class="stat-card-sub">4th most in league</div></div>
+    <div class="stat-card"><div class="stat-card-label">Points Against</div><div class="stat-card-val">1,649</div><div class="stat-card-sub">5th most scored against</div></div>
+    <div class="stat-card"><div class="stat-card-label">Avg Points/Week</div><div class="stat-card-val">118.6</div><div class="stat-card-sub">vs 118.0 league avg</div></div>
+    <div class="stat-card"><div class="stat-card-label">Best Week</div><div class="stat-card-val">189.3</div><div class="stat-card-sub">Week 4 — explosive</div></div>
+    <div class="stat-card"><div class="stat-card-label">Worst Week</div><div class="stat-card-val">77.7</div><div class="stat-card-sub">Week 13 — floor dropped</div></div>
+  </div>
+
+  <h2 style="font-size:1.1rem;margin-bottom:12px"><span>📋</span> Current Roster</h2>
+  <div class="cards-grid">
+    <div class="card you-card">
+      <div class="pos-label">QB</div>
+      <div><span class="player-chip">Joe Burrow, 29</span><span class="player-chip">Baker Mayfield, 30</span><span class="player-chip">Daniel Jones, 28</span><span class="player-chip">Malik Willis, 26</span></div>
+    </div>
+    <div class="card you-card">
+      <div class="pos-label">RB</div>
+      <div><span class="player-chip">Kyren Williams, 25</span><span class="player-chip">Ashton Jeanty, 22 🔥</span><span class="player-chip">TreVeyon Henderson, 23</span><span class="player-chip">Tyjae Spears, 24</span><span class="player-chip">Jarquez Hunter, 23</span><span class="player-chip">Ray Davis, 26</span><span class="player-chip">George Holani, 26</span><span class="player-chip">Woody Marks, 25</span><span class="player-chip">Kaleb Johnson, 22</span><span class="player-chip">LeQuint Allen, 21</span><span class="player-chip">Zonovan Knight, 24</span></div>
+    </div>
+    <div class="card you-card">
+      <div class="pos-label">WR</div>
+      <div><span class="player-chip">Justin Jefferson, 26 ⭐</span><span class="player-chip">Drake London, 24</span><span class="player-chip">Jayden Reed, 25</span><span class="player-chip">Puka Nacua, 24</span><span class="player-chip">Rome Odunze, 23</span><span class="player-chip">Tank Dell, 26</span><span class="player-chip">Dontayvion Wicks, 24</span><span class="player-chip">Tory Horton, 23</span><span class="player-chip">Henry Ruggs, 22</span></div>
+    </div>
+    <div class="card you-card">
+      <div class="pos-label">TE</div>
+      <div><span class="player-chip">Tyler Warren, 23 🔥</span><span class="player-chip">Jake Ferguson, 27</span></div>
+      <div class="pos-label" style="margin-top:10px">K / DEF</div>
+      <div><span class="player-chip">Harrison Mevis</span><span class="player-chip">PHI</span></div>
+    </div>
+  </div>
+
+  <div class="card you-card" style="margin-top:16px">
+    <div class="card-owner" style="margin-bottom:10px">📈 Strengths</div>
+    <p class="need-text">Your WR room headlined by Justin Jefferson is one of the best in the league — London, Reed, Nacua, and Odunze are all under 25 with upside to grow. The RB corps has exceptional youth and upside: Ashton Jeanty is arguably the top dynasty RB prospect of his class, Kyren Williams is a proven PPR machine, and TreVeyon Henderson is a high-ceiling sleeper. This team is built young with a legitimate contention window in 2–3 years.</p>
+  </div>
+  <div class="card" style="margin-top:12px;border-color:rgba(239,83,80,.3)">
+    <div class="card-owner" style="margin-bottom:10px;color:#ef9a9a">⚠️ Weaknesses & Concerns</div>
+    <p class="need-text"><strong style="color:#ffcc80">TE is the #1 need:</strong> Tyler Warren is an exciting 2025 rookie but completely unproven at the NFL level. Jake Ferguson has no elite ceiling. This position is a liability against teams with elite TEs (McBride, Kittle, Bowers).<br><br>
+    <strong style="color:#ffcc80">QB depth is thin:</strong> Burrow is a franchise anchor but Baker Mayfield and Daniel Jones are uninspiring backups. If Burrow misses time, you have a serious problem.<br><br>
+    <strong style="color:#ffcc80">Pick capital is depleted:</strong> You've traded away your 2026 R1, 2026 R3, 2027 R1, and 2027 R2 — your most valuable future assets. The next two drafts will be lean, which limits your ability to add youth through the rookie draft.<br><br>
+    <strong style="color:#ffcc80">Henry Ruggs:</strong> Has been out of the league since 2021 — this roster spot should be used on someone active.</p>
+  </div>
+</div>
+
+<!-- ════ PICK CAPITAL ════ -->
+<div data-section="picks" class="section">
+  <h2><span>🎯</span> Future Pick Capital — All Teams</h2>
+  <p style="color:#81c784;font-size:.85rem;margin-bottom:16px">Your team (KeviNorm) highlighted in teal. Only traded picks shown — untraded picks remain with original team.</p>
+  <div id="picks-container"></div>
+</div>
+
+</div><!-- /container -->
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────
+const TEAMS = [
+  {id:1,  owner:"powpow222",    team:"powpow222",               wins:5,  losses:9,  pf:1494.90, pa:1615.12},
+  {id:2,  owner:"tallmanjames", team:"Mayor of Injury City",    wins:5,  losses:9,  pf:1326.74, pa:1618.68},
+  {id:3,  owner:"Rulo",         team:"Deep In Young Guys",      wins:4,  losses:10, pf:1348.52, pa:1528.60},
+  {id:4,  owner:"rfleming222",  team:"Jordy Ounce Bounce",      wins:11, losses:3,  pf:1868.24, pa:1487.62},
+  {id:5,  owner:"BeardedExile", team:"DMartropolis",            wins:4,  losses:10, pf:1316.02, pa:1518.32},
+  {id:6,  owner:"kflem20",      team:"KeviNorm",                wins:7,  losses:7,  pf:1661.10, pa:1649.22, isYou:true},
+  {id:7,  owner:"SeanLeBlanc",  team:"FOOTBALL!!!",             wins:14, losses:0,  pf:2125.30, pa:1495.96},
+  {id:8,  owner:"Timohim",      team:"Dee's Nuts",              wins:4,  losses:10, pf:1349.18, pa:1570.40},
+  {id:9,  owner:"binaryblake",  team:"binaryblake",             wins:9,  losses:5,  pf:1793.10, pa:1610.64},
+  {id:10, owner:"schristo",     team:"Chillin with Mahomes",    wins:6,  losses:8,  pf:1428.84, pa:1683.76},
+  {id:11, owner:"fulltank",     team:"fulltank",                wins:10, losses:4,  pf:1666.40, pa:1450.06},
+  {id:12, owner:"AFRONAUGHT",   team:"Governor of Injury Isl.", wins:5,  losses:9,  pf:1422.24, pa:1572.20},
+];
+
+// WEEKLY SCORES[week 0-13][roster_id 1-12]
+const WEEKLY = [
+  // Wk1
+  {1:118.36,2:131.42,3:115.88,4:129.86,5:77.78, 6:109.12,7:110.38,8:100.22,9:97.22, 10:109.92,11:93.52, 12:118.92},
+  // Wk2
+  {1:109.60,2:123.50,3:93.50, 4:128.52,5:64.70, 6:109.04,7:158.04,8:111.00,9:91.62, 10:119.18,11:132.58,12:79.38},
+  // Wk3
+  {1:109.92,2:72.46, 3:125.82,4:121.82,5:55.88, 6:96.32, 7:152.04,8:121.56,9:113.84,10:102.46,11:145.50,12:111.92},
+  // Wk4
+  {1:92.28, 2:107.74,3:96.52, 4:114.76,5:133.36,6:189.26,7:128.60,8:117.72,9:160.56,10:97.60, 11:101.52,12:133.84},
+  // Wk5
+  {1:113.06,2:70.34, 3:82.32, 4:150.62,5:93.54, 6:133.86,7:137.22,8:102.30,9:140.48,10:107.02,11:102.94,12:136.92},
+  // Wk6
+  {1:100.24,2:70.84, 3:112.94,4:78.20, 5:140.10,6:104.24,7:162.42,8:90.62, 9:151.66,10:99.68, 11:139.36,12:109.10},
+  // Wk7
+  {1:117.38,2:73.84, 3:96.78, 4:144.66,5:69.62, 6:98.62, 7:177.34,8:115.34,9:106.26,10:149.54,11:144.90,12:105.44},
+  // Wk8
+  {1:137.02,2:84.02, 3:100.48,4:162.68,5:77.72, 6:119.48,7:160.56,8:90.42, 9:144.32,10:104.96,11:107.28,12:80.16},
+  // Wk9
+  {1:123.36,2:126.62,3:99.26, 4:139.22,5:109.90,6:143.38,7:158.72,8:102.64,9:118.70,10:63.40, 11:88.60, 12:94.02},
+  // Wk10
+  {1:97.14, 2:86.32, 3:65.90, 4:149.64,5:87.42, 6:143.52,7:173.92,8:75.50, 9:119.12,10:75.12, 11:139.50,12:97.86},
+  // Wk11
+  {1:97.92, 2:85.06, 3:77.04, 4:152.78,5:95.36, 6:128.02,7:139.60,8:59.80, 9:126.42,10:90.44, 11:90.84, 12:82.94},
+  // Wk12
+  {1:78.32, 2:116.72,3:93.46, 4:111.72,5:110.86,6:95.04, 7:155.66,8:99.16, 9:164.06,10:99.48, 11:155.58,12:94.72},
+  // Wk13
+  {1:90.64, 2:96.54, 3:117.38,4:154.92,5:85.92, 6:77.74, 7:187.30,8:79.14, 9:106.50,10:98.64, 11:90.34, 12:108.48},
+  // Wk14
+  {1:109.66,2:81.32, 3:71.24, 4:128.84,5:113.86,6:113.46,7:123.50,8:83.76, 9:152.34,10:111.40,11:133.94,12:68.54},
+];
+
+// Matchup IDs per week (to determine win/loss)
+const MATCHUPS = [
+  {1:3,2:2,3:1,4:4,5:3,6:2,7:6,8:6,9:5,10:5,11:1,12:4},
+  {1:3,2:1,3:2,4:3,5:4,6:2,7:5,8:6,9:5,10:6,11:1,12:4},
+  {1:3,2:2,3:2,4:4,5:4,6:1,7:6,8:5,9:5,10:6,11:1,12:3},
+  {1:1,2:3,3:2,4:5,5:2,6:4,7:5,8:6,9:3,10:4,11:1,12:6},
+  {1:2,2:3,3:2,4:5,5:1,6:4,7:6,8:5,9:4,10:3,11:1,12:6},
+  {1:5,2:3,3:2,4:1,5:6,6:4,7:3,8:4,9:5,10:6,11:1,12:2},
+  {1:5,2:3,3:2,4:2,5:6,6:4,7:4,8:3,9:6,10:5,11:1,12:1},
+  {1:5,2:3,3:2,4:3,5:6,6:4,7:5,8:6,9:1,10:2,11:1,12:4},
+  {1:5,2:3,3:2,4:4,5:6,6:4,7:6,8:5,9:2,10:1,11:1,12:3},
+  {1:3,2:3,3:2,4:5,5:4,6:4,7:1,8:2,9:5,10:6,11:1,12:6},
+  {1:4,2:3,3:2,4:5,5:3,6:4,7:2,8:1,9:6,10:5,11:1,12:6},
+  {1:3,2:2,3:1,4:4,5:3,6:2,7:6,8:6,9:5,10:5,11:1,12:4},
+  {1:3,2:1,3:2,4:3,5:4,6:2,7:5,8:6,9:5,10:6,11:1,12:4},
+  {1:3,2:2,3:2,4:4,5:4,6:1,7:6,8:5,9:5,10:6,11:1,12:3},
+];
+
+const NEEDS = {
+  1:{strengths:["QB","RB"],needs:["WR","TE"],
+    text:"Lamar Jackson anchors a strong QB room, and the Barkley/Mixon backfield is solid today. The WR corps (Allen 33, Diggs 32, Kupp 32) is aging off a cliff — WR1 youth is the #1 priority. TE is a critical weakness with only Dalton Schultz (backend TE2) and no upside dart throw."},
+  2:{strengths:["QB","WR","TE"],needs:["RB"],
+    text:"Jayden Daniels + CJ Stroud is the best young QB duo in the league. Brock Bowers (23) is a top-3 dynasty TE. Harrison Jr. + Nabers is one of the most exciting young WR tandems. The RB room is the clear hole — Conner, Pollard, and Harris are depth/aging pieces. Needs one proven RB1/2 to contend."},
+  3:{strengths:["QB","WR"],needs:["RB","TE"],
+    text:"Caleb Williams, Drake Maye, and Jaxson Dart are three elite young QBs. AJ Brown and Aiyuk anchor a productive WR room. The RB position is one of the worst in the league — no established starter anywhere. TE is serviceable (Andrews) but aging. Must address RB urgently."},
+  4:{strengths:["QB","RB","WR"],needs:["TE"],
+    text:"Josh Allen + Jordan Love form one of the best QB tandems in the league. The RB depth (Henry, Taylor, Hall, Chubb) is elite, though age on Henry/Chubb warrants attention. CeeDee Lamb + Garrett Wilson is a top WR pairing. TE is the glaring hole — Ertz (35), Waller (33) are near retirement and Kincaid is unproven as TE1."},
+  5:{strengths:["WR","TE"],needs:["QB","RB"],
+    text:"The WR room (McConkey, Tetairoa McMillan, Coleman) is young and ascending. TE has Goedert and Loveland (21) as an exciting long-term pair. But the RB position is the worst in the league — no proven starter at all, just depth and handcuffs. QB (Purdy, Darnold, Penix) is functional but uninspiring. RB is the #1 priority."},
+  6:{strengths:["WR","RB"],needs:["TE","QB depth"],
+    text:"Justin Jefferson leads a top WR room — London, Reed, Nacua, Odunze are all under 25 and ascending. Jeanty + Kyren Williams + Henderson is an excellent young RB core. TE is the clear weakness — Warren is a promising rookie but unproven, Ferguson has no elite ceiling. QB depth behind Burrow is thin. Pick capital is depleted through 2027.",isYou:true},
+  7:{strengths:["QB","RB","WR","TE"],needs:["WR depth"],
+    text:"The best roster in the league. Hurts + Bo Nix at QB, a stacked RB room (CMC, Jacobs, Etienne, Cook, Achane), Ja'Marr Chase + Tee Higgins + Rashee Rice at WR, and Trey McBride at TE. The only concern is aging depth (Hill 31, Deebo 30) needing eventual replacement. This team should dominate for several more seasons."},
+  8:{strengths:["WR"],needs:["QB","RB","TE"],
+    text:"This roster has multi-position holes. The RB room (Mason, Shipley, Sanders) is one of the weakest in the league. TE is equally bad — Taysom Hill (35) is a gimmick and Fannnin/Johnson are unproven rookies. Goff and Kyler Murray are functional but not elite. WR (Evans, DJ Moore, DeVonta Smith) is the lone strength, though Evans is 32. Needs a rebuild through the draft at RB and TE."},
+  9:{strengths:["WR","TE"],needs:["RB","QB"],
+    text:"JJ McCarthy is an exciting young dynasty QB with Prescott as a stable veteran. The WR corps (Waddle, JSN, Pickens, Brian Thomas) is one of the best in the league. Kyle Pitts (25) remains an elite TE upside asset. The RB room (Hampton, Warren, Allgeier, Brown) is thin — no proven starter. Needs one high-volume RB to unlock the roster's potential."},
+  10:{strengths:["QB"],needs:["WR1","RB"],
+    text:"Mahomes, Lawrence, and Tua is a top-heavy QB room — the redundancy should be sold for positional help. The WR depth (Pittman, Olave, Nailor, Mims) is extensive but lacks a true WR1. The RB room (Kamara aging, Harris inefficient, Javonte rehabbing) needs upgrading. TE Hockenson is elite when healthy. Consolidate QB depth into a young WR1 or proven RB."},
+  11:{strengths:["QB","RB","TE"],needs:["WR"],
+    text:"Herbert + Cam Ward is a premium QB pairing with elite age profiles. Gibbs (23) is a top-5 dynasty RB, supported by Walker, Swift, and Cam Skattebo. TE has Kittle/Engram aging at the top with Arroyo/Mayer as developmental options. The WR position is the clear weakness — DK and Amon-Ra are solid but thin, and the depth (Pearsall, Meyers, Doubs) has limited upside. Prioritize a young WR1 in the next draft."},
+  12:{strengths:["RB","TE"],needs:["WR","QB"],
+    text:"Bijan Robinson (24) is a top-5 dynasty RB and the franchise piece. Sam LaPorta and Mason Taylor (21) give TE solid long-term value. QB is a concern — Richardson's durability/accuracy, Fields as a backup, Stafford at 38. WR has McLaurin (30) and Godwin (30, ACL) declining, though Worthy, Mitchell, and Egbuka are the young core to build around. Kelce (36) gives elite TE value now but won't last long."},
+};
+
+// TRADED PICKS (future only: 2026+)
+// Format: {yr, rd, originalTeam, currentOwner}
+const TRADED_PICKS = [
+  // 2026
+  {yr:2026,rd:1,orig:1,cur:7},{yr:2026,rd:2,orig:1,cur:2},{yr:2026,rd:1,orig:2,cur:7},{yr:2026,rd:2,orig:2,cur:5},
+  {yr:2026,rd:3,orig:2,cur:9},{yr:2026,rd:1,orig:3,cur:6},{yr:2026,rd:2,orig:3,cur:12},{yr:2026,rd:4,orig:4,cur:3},
+  {yr:2026,rd:1,orig:4,cur:10},{yr:2026,rd:2,orig:4,cur:10},{yr:2026,rd:3,orig:4,cur:11},{yr:2026,rd:1,orig:6,cur:3},
+  {yr:2026,rd:3,orig:6,cur:10},{yr:2026,rd:1,orig:7,cur:8},{yr:2026,rd:2,orig:7,cur:8},{yr:2026,rd:3,orig:7,cur:12},
+  {yr:2026,rd:2,orig:8,cur:7},{yr:2026,rd:3,orig:8,cur:12},{yr:2026,rd:2,orig:9,cur:10},{yr:2026,rd:4,orig:9,cur:2},
+  {yr:2026,rd:1,orig:10,cur:7},{yr:2026,rd:3,orig:10,cur:11},{yr:2026,rd:1,orig:11,cur:8},{yr:2026,rd:2,orig:11,cur:7},
+  {yr:2026,rd:3,orig:11,cur:4},{yr:2026,rd:2,orig:12,cur:1},{yr:2026,rd:3,orig:12,cur:12},
+  // 2027
+  {yr:2027,rd:1,orig:1,cur:12},{yr:2027,rd:2,orig:1,cur:7},{yr:2027,rd:1,orig:2,cur:10},{yr:2027,rd:2,orig:2,cur:7},
+  {yr:2027,rd:3,orig:2,cur:11},{yr:2027,rd:4,orig:2,cur:11},{yr:2027,rd:1,orig:3,cur:7},{yr:2027,rd:1,orig:4,cur:5},
+  {yr:2027,rd:2,orig:4,cur:10},{yr:2027,rd:3,orig:4,cur:9},{yr:2027,rd:1,orig:6,cur:7},{yr:2027,rd:2,orig:6,cur:7},
+  {yr:2027,rd:4,orig:6,cur:10},{yr:2027,rd:1,orig:7,cur:10},{yr:2027,rd:2,orig:7,cur:4},{yr:2027,rd:3,orig:7,cur:8},
+  {yr:2027,rd:2,orig:8,cur:7},{yr:2027,rd:3,orig:8,cur:11},{yr:2027,rd:3,orig:9,cur:9},{yr:2027,rd:1,orig:10,cur:2},
+  {yr:2027,rd:2,orig:10,cur:10},{yr:2027,rd:3,orig:10,cur:2},{yr:2027,rd:4,orig:10,cur:6},{yr:2027,rd:1,orig:11,cur:7},
+  {yr:2027,rd:2,orig:11,cur:2},{yr:2027,rd:3,orig:11,cur:8},{yr:2027,rd:3,orig:12,cur:3},
+  // 2028
+  {yr:2028,rd:1,orig:1,cur:3},{yr:2028,rd:2,orig:3,cur:11},{yr:2028,rd:2,orig:4,cur:3},{yr:2028,rd:2,orig:7,cur:8},
+  {yr:2028,rd:3,orig:7,cur:6},{yr:2028,rd:2,orig:8,cur:7},{yr:2028,rd:2,orig:11,cur:7},{yr:2028,rd:3,orig:12,cur:2},
+];
+
+// ── HELPERS ───────────────────────────────────────────────────
+function teamById(id){ return TEAMS.find(t=>t.id===id); }
+function teamLabel(id){ const t=teamById(id); return t?`${t.owner}`:'?'; }
+
+function calcAllPlay(){
+  const ap = {};
+  TEAMS.forEach(t=>{ ap[t.id]={w:0,l:0}; });
+  WEEKLY.forEach(wk=>{
+    const scores = TEAMS.map(t=>({id:t.id,pts:wk[t.id]}));
+    scores.forEach(a=>{
+      scores.forEach(b=>{
+        if(a.id===b.id) return;
+        if(a.pts>b.pts) ap[a.id].w++;
+        else if(a.pts<b.pts) ap[a.id].l++;
+      });
+    });
+  });
+  return ap;
+}
+
+function calcWinsByMatchup(){
+  const wins = {};
+  TEAMS.forEach(t=>{ wins[t.id]=0; });
+  WEEKLY.forEach((wk,wi)=>{
+    const mup = MATCHUPS[wi];
+    // group by matchup_id
+    const groups = {};
+    TEAMS.forEach(t=>{
+      const mid = mup[t.id];
+      if(!groups[mid]) groups[mid]=[];
+      groups[mid].push({id:t.id,pts:wk[t.id]});
+    });
+    Object.values(groups).forEach(pair=>{
+      if(pair.length===2){
+        if(pair[0].pts>pair[1].pts) wins[pair[0].id]++;
+        else wins[pair[1].id]++;
+      }
+    });
+  });
+  return wins;
+}
+
+// ── BUILD STANDINGS ───────────────────────────────────────────
+let sortKey='wins', sortDir=-1;
+
+function buildStandings(){
+  const sorted = [...TEAMS].sort((a,b)=>{
+    let va,vb;
+    if(sortKey==='team') { va=a.team.toLowerCase(); vb=b.team.toLowerCase(); return sortDir*(va<vb?-1:1); }
+    if(sortKey==='rank') { va=b.wins-(b.pf/10000); vb=a.wins-(a.pf/10000); return va-vb; }
+    if(sortKey==='pct')  { va=a.wins/(a.wins+a.losses); vb=b.wins/(b.wins+b.losses); }
+    else if(sortKey==='diff') { va=a.pf-a.pa; vb=b.pf-b.pa; }
+    else if(sortKey==='ppg')  { va=a.pf/14; vb=b.pf/14; }
+    else { va=a[sortKey]; vb=b[sortKey]; }
+    return sortDir*(vb-va);
+  });
+
+  const defaultOrder = [...TEAMS].sort((a,b)=>(b.wins-a.wins)||(b.pf-a.pf));
+
+  let html='';
+  sorted.forEach((t,i)=>{
+    const rank = defaultOrder.findIndex(x=>x.id===t.id)+1;
+    const diff = t.pf-t.pa;
+    const you = t.isYou?' you-row':'';
+    html+=`<tr class="${you}">
+      <td><span class="rank">${rank}</span></td>
+      <td><div class="team-name-cell">${t.team}</div><div class="owner-cell">@${t.owner}${t.isYou?' 👈':''}</div></td>
+      <td class="wins">${t.wins}</td>
+      <td class="losses">${t.losses}</td>
+      <td>${((t.wins/(t.wins+t.losses))*100).toFixed(0)}%</td>
+      <td class="pts">${t.pf.toFixed(1)}</td>
+      <td class="pts-against">${t.pa.toFixed(1)}</td>
+      <td style="color:${diff>=0?'#69f0ae':'#ef9a9a'}">${diff>=0?'+':''}${diff.toFixed(1)}</td>
+      <td>${(t.pf/14).toFixed(1)}</td>
+    </tr>`;
+  });
+  document.getElementById('standings-body').innerHTML=html;
+}
+
+function sortTable(key){
+  if(sortKey===key) sortDir*=-1;
+  else { sortKey=key; sortDir=-1; }
+  buildStandings();
+}
+
+// ── BUILD LUCK TABLE ──────────────────────────────────────────
+function buildLuck(){
+  const ap = calcAllPlay();
+  let html='';
+  const sorted = [...TEAMS].sort((a,b)=>(b.wins-a.wins)||(b.pf-a.pf));
+  sorted.forEach(t=>{
+    const {w,l} = ap[t.id];
+    const total = w+l;
+    const apPct = w/total;
+    const expectedWins = +(apPct * 14).toFixed(1);
+    const luck = +(t.wins - expectedWins).toFixed(1);
+    const luckClass = luck>1?'lucky':luck<-1?'unlucky':'neutral';
+    const dotClass = luck>1?'luck-lucky':luck<-1?'luck-unlucky':'luck-neutral';
+    const verdict = luck>=2?'Very Lucky 🍀':luck>=1?'Lucky':luck<=-2?'Robbed 😤':luck<=-1?'Unlucky':'Neutral';
+    const you = t.isYou?' you-row':'';
+    html+=`<tr class="${you}">
+      <td><div style="font-weight:600">${t.team}</div><div style="font-size:.75rem;color:#81c784">@${t.owner}</div></td>
+      <td>${t.wins}–${t.losses}</td>
+      <td>${w}–${l}</td>
+      <td>${(apPct*100).toFixed(1)}%</td>
+      <td>${expectedWins}</td>
+      <td><span class="luck-val ${luckClass}">${luck>=0?'+':''}${luck}</span></td>
+      <td><span class="luck-bar"><span class="luck-dot ${dotClass}"></span>${verdict}</span></td>
+    </tr>`;
+  });
+  document.getElementById('luck-body').innerHTML=html;
+}
+
+// ── BUILD WEEKLY CHART ────────────────────────────────────────
+function buildWeekChart(){
+  const container = document.getElementById('week-chart');
+  // Header row
+  let hdr = `<div class="chart-row"><div class="chart-label" style="color:#555">Team</div><div class="chart-bars">`;
+  for(let w=1;w<=14;w++) hdr+=`<div style="width:28px;font-size:.65rem;color:#555;text-align:center;flex-shrink:0">W${w}</div>`;
+  hdr+=`</div></div>`;
+  container.innerHTML=hdr;
+
+  const sorted = [...TEAMS].sort((a,b)=>(b.wins-a.wins)||(b.pf-a.pf));
+  sorted.forEach(t=>{
+    const label = `<div class="chart-label" title="${t.team}">${t.isYou?'⭐ ':''}<strong>${t.team.substring(0,16)}</strong></div>`;
+    let bars = `<div class="chart-bars">`;
+    for(let w=0;w<14;w++){
+      const pts = WEEKLY[w][t.id];
+      const mup = MATCHUPS[w];
+      const mid = mup[t.id];
+      // find opponent
+      let opId = null;
+      Object.entries(mup).forEach(([rid,m])=>{ if(parseInt(rid)!==t.id && m===mid) opId=parseInt(rid); });
+      const opPts = opId?WEEKLY[w][opId]:0;
+      const won = pts > opPts;
+      const youClass = t.isYou?' you-bar':'';
+      const colorClass = won?'win-bar':'loss-bar';
+      const h = Math.max(4, Math.round((pts/200)*36));
+      bars+=`<div class="chart-bar ${colorClass}${youClass}" style="width:28px;height:${h}px;flex-shrink:0;align-self:flex-end" data-tip="Wk${w+1}: ${pts} pts (${won?'W':'L'}${opId?` vs ${opPts}`:''})"></div>`;
+    }
+    bars+=`</div>`;
+    container.innerHTML+=`<div class="chart-row">${label}${bars}</div>`;
+  });
+}
+
+// ── BUILD NEEDS CARDS ─────────────────────────────────────────
+function buildNeeds(){
+  const container = document.getElementById('needs-cards');
+  const sorted = [...TEAMS].sort((a,b)=>(b.wins-a.wins)||(b.pf-a.pf));
+  sorted.forEach(t=>{
+    const n = NEEDS[t.id];
+    const strengths = (n.strengths||[]).map(s=>`<span class="need-tag need-strength">✓ ${s}</span>`).join('');
+    const needs = (n.needs||[]).map(s=>`<span class="need-tag need-critical">⚠ ${s}</span>`).join('');
+    container.innerHTML+=`
+    <div class="card ${t.isYou?'you-card':''}">
+      <div class="card-header">
+        <div><div class="card-owner">${t.isYou?'⭐ ':''}${t.team}</div><div class="card-team">@${t.owner}</div></div>
+        <div class="card-record"><div class="card-wins">${t.wins}–${t.losses}</div><div class="card-pf">${t.pf.toFixed(0)} pts</div></div>
+      </div>
+      <div>${strengths}${needs}</div>
+      <p class="need-text">${n.text}</p>
+    </div>`;
+  });
+}
+
+// ── BUILD PICK CAPITAL ────────────────────────────────────────
+function buildPicks(){
+  const container = document.getElementById('picks-container');
+  const years = [2026,2027,2028];
+  const rounds = [1,2,3,4];
+  const rdLabel = r=>['1st','2nd','3rd','4th'][r-1];
+  const rdBadge = r=>`<span class="pick-badge badge-${r}">${rdLabel(r)}</span>`;
+
+  let html='';
+  TEAMS.forEach(owner=>{
+    const teamPicks = [];
+    years.forEach(yr=>{
+      rounds.forEach(rd=>{
+        const traded = TRADED_PICKS.find(p=>p.yr===yr&&p.rd===rd&&p.orig===owner.id);
+        if(traded && traded.cur===owner.id && traded.orig!==owner.id){
+          // they received someone else's pick
+          teamPicks.push({yr,rd,type:'recv',from:traded.orig});
+        }
+        if(traded && traded.cur!==owner.id && traded.orig===owner.id){
+          // they gave away their own pick
+          teamPicks.push({yr,rd,type:'given',to:traded.cur});
+        }
+        if(!traded){
+          // they still have their own pick (untraded = implied own)
+          // only flag if it's a top 2 round as "own"
+          if(rd<=2) teamPicks.push({yr,rd,type:'own'});
+        }
+      });
+      // also check if they own others' picks
+      TRADED_PICKS.filter(p=>p.yr===yr&&p.cur===owner.id&&p.orig!==owner.id).forEach(p=>{
+        if(!teamPicks.find(tp=>tp.yr===p.yr&&tp.rd===p.rd&&tp.type==='recv'&&tp.from===p.orig)){
+          teamPicks.push({yr:p.yr,rd:p.rd,type:'recv',from:p.orig});
+        }
+      });
+    });
+
+    if(teamPicks.length===0) return;
+    const youClass = owner.isYou?' you-card':'';
+    html+=`<div class="card${youClass}" style="margin-bottom:16px">
+      <div class="card-header" style="margin-bottom:10px">
+        <div><div class="card-owner">${owner.isYou?'⭐ ':''}${owner.team}</div><div class="card-team">@${owner.owner}</div></div>
+        <div class="card-record"><div class="card-wins">${owner.wins}–${owner.losses}</div></div>
+      </div>
+      <div class="picks-grid">`;
+    teamPicks.sort((a,b)=>a.yr-b.yr||a.rd-b.rd).forEach(p=>{
+      if(p.type==='recv'){
+        html+=`<div class="pick-row pick-recv">${rdBadge(p.rd)}<span class="pick-desc">${p.yr} ${rdLabel(p.rd)} <em style="color:#888">from ${teamLabel(p.from)}</em></span><span class="pick-dir-in">IN ↓</span></div>`;
+      } else if(p.type==='given'){
+        html+=`<div class="pick-row pick-given">${rdBadge(p.rd)}<span class="pick-desc">${p.yr} ${rdLabel(p.rd)} <em style="color:#888">to ${teamLabel(p.to)}</em></span><span class="pick-dir-out">OUT ↑</span></div>`;
+      } else {
+        html+=`<div class="pick-row pick-own">${rdBadge(p.rd)}<span class="pick-desc">${p.yr} ${rdLabel(p.rd)} (own)</span></div>`;
+      }
+    });
+    html+=`</div></div>`;
+  });
+  container.innerHTML=html;
+}
+
+// ── NAV ───────────────────────────────────────────────────────
+function showSection(id){
+  document.querySelectorAll('[data-section]').forEach(s=>s.classList.remove('visible'));
+  document.querySelector(`[data-section="${id}"]`).classList.add('visible');
+  document.querySelectorAll('.nav-link').forEach(l=>l.classList.remove('active'));
+  event.target.classList.add('active');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ── INIT ──────────────────────────────────────────────────────
+buildStandings();
+buildLuck();
+buildWeekChart();
+buildNeeds();
+buildPicks();
+</script>
+</body>
+</html>
