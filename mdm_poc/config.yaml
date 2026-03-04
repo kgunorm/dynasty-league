@@ -1,0 +1,44 @@
+sources:
+  - path: data/source_a.csv
+    system_id: crm
+    field_map:
+      full_name: Name
+      email: Email
+      phone: Phone
+      address: Address
+      updated_at: LastModified
+
+  - path: data/source_b.csv
+    system_id: marketing
+    field_map:
+      full_name: contact_name
+      email: contact_email
+      phone: mobile
+      address: mailing_address
+      updated_at: record_updated
+
+  - path: data/source_c.xlsx
+    system_id: erp
+    sheet_name: Contacts
+    field_map:
+      full_name: FullName
+      email: EmailAddr
+      phone: PhoneNumber
+      address: StreetAddress
+      updated_at: ModifiedDate
+
+output_dir: output/
+
+matching:
+  hard_match_fields: [full_name, phone]
+  weights:
+    full_name: 0.35
+    email: 0.30
+    phone: 0.20
+    address: 0.15
+  thresholds:
+    auto_merge: 85
+    review: 60
+
+blocking:
+  phone_prefix_length: 4

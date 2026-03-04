@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MDM Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0f0b;
+    --surface: #111a13;
+    --surface2: #162019;
+    --border: #1e3022;
+    --green: #69f0ae;
+    --cyan: #00e5ff;
+    --amber: #ffd54f;
+    --red: #ef5350;
+    --purple: #ce93d8;
+    --blue: #42a5f5;
+    --orange: #ffa726;
+    --text: #e8f5e9;
+    --muted: #78909c;
+    --win-bg: rgba(105,240,174,0.12);
+    --override-bg: rgba(255,213,79,0.12);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; }
+
+  /* Nav */
+  nav { background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 24px; gap: 4px; position: sticky; top: 0; z-index: 100; }
+  nav .logo { color: var(--green); font-weight: 700; font-size: 16px; padding: 14px 16px 14px 0; border-right: 1px solid var(--border); margin-right: 8px; letter-spacing: 1px; }
+  nav button { background: none; border: none; color: var(--muted); cursor: pointer; padding: 14px 16px; font-size: 13px; font-weight: 500; border-bottom: 2px solid transparent; transition: color .15s, border-color .15s; }
+  nav button:hover { color: var(--text); }
+  nav button.active { color: var(--green); border-bottom-color: var(--green); }
+
+  /* Sections */
+  .section { display: none; padding: 24px; max-width: 1400px; margin: 0 auto; }
+  .section.active { display: block; }
+
+  /* Cards */
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 28px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+  .stat-card .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .stat-card .value { font-size: 32px; font-weight: 700; color: var(--green); }
+  .stat-card .sub { color: var(--muted); font-size: 11px; margin-top: 4px; }
+
+  /* Charts row */
+  .charts-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .chart-box { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+  .chart-box h3 { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
+  .chart-box canvas { max-height: 240px; }
+
+  /* Tables */
+  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th { background: var(--surface2); color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; white-space: nowrap; }
+  thead th:hover { color: var(--text); }
+  tbody tr { border-bottom: 1px solid var(--border); cursor: pointer; transition: background .1s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--surface2); }
+  tbody tr.selected { background: rgba(105,240,174,0.07); }
+  td { padding: 10px 14px; vertical-align: middle; }
+
+  /* Chips */
+  .chip { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; margin: 1px; }
+  .chip-crm { background: rgba(66,165,245,0.2); color: var(--blue); }
+  .chip-marketing { background: rgba(206,147,216,0.2); color: var(--purple); }
+  .chip-erp { background: rgba(255,167,38,0.2); color: var(--orange); }
+  .chip-singleton { background: rgba(120,144,156,0.2); color: var(--muted); }
+  .chip-merged { background: rgba(105,240,174,0.15); color: var(--green); }
+  .chip-win { background: rgba(105,240,174,0.2); color: var(--green); font-size: 10px; }
+  .chip-override { background: rgba(255,213,79,0.2); color: var(--amber); font-size: 10px; }
+
+  /* Score badge */
+  .score-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 700; }
+  .score-high { background: rgba(105,240,174,0.15); color: var(--green); }
+  .score-mid { background: rgba(255,213,79,0.15); color: var(--amber); }
+  .score-none { background: rgba(120,144,156,0.15); color: var(--muted); }
+
+  /* Filter bar */
+  .filter-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+  .filter-bar input { background: var(--surface); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 7px 12px; font-size: 13px; outline: none; min-width: 220px; }
+  .filter-bar input:focus { border-color: var(--green); }
+  .filter-bar button { background: var(--surface); border: 1px solid var(--border); color: var(--muted); cursor: pointer; border-radius: 6px; padding: 7px 14px; font-size: 12px; font-weight: 600; transition: all .15s; }
+  .filter-bar button:hover, .filter-bar button.active { border-color: var(--green); color: var(--green); background: rgba(105,240,174,0.07); }
+
+  /* Drill-down panel */
+  #drill-panel { display: none; margin-top: 20px; background: var(--surface); border: 1px solid var(--green); border-radius: 10px; padding: 24px; }
+  #drill-panel.open { display: block; }
+  #drill-panel h2 { color: var(--green); font-size: 18px; margin-bottom: 4px; }
+  #drill-panel .meta { color: var(--muted); font-size: 12px; margin-bottom: 20px; }
+  #drill-close { float: right; background: none; border: 1px solid var(--border); color: var(--muted); cursor: pointer; padding: 4px 12px; border-radius: 4px; font-size: 12px; }
+  #drill-close:hover { color: var(--text); }
+
+  .drill-field-table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+  .drill-field-table th { background: var(--surface2); color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  .drill-field-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
+  .drill-field-table tr:last-child td { border-bottom: none; }
+  td.cell-win { background: var(--win-bg); }
+  td.cell-override { background: var(--override-bg); }
+  td.cell-same { color: var(--muted); }
+  .strike { text-decoration: line-through; color: var(--muted); }
+
+  /* Empty state */
+  .empty { text-align: center; padding: 48px; color: var(--muted); }
+  .empty .icon { font-size: 36px; margin-bottom: 12px; }
+
+  /* Section title */
+  .section-title { font-size: 20px; font-weight: 700; margin-bottom: 20px; color: var(--text); }
+  .section-title span { color: var(--green); }
+
+  h3.sub-head { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 24px 0 12px; }
+
+  /* Conflict field colors */
+  tr[data-field="full_name"] td:first-child { border-left: 3px solid var(--blue); }
+  tr[data-field="email"] td:first-child { border-left: 3px solid var(--purple); }
+  tr[data-field="phone"] td:first-child { border-left: 3px solid var(--green); }
+  tr[data-field="address"] td:first-child { border-left: 3px solid var(--orange); }
+
+  .review-pair { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+  .review-pair .pair-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .review-pair h4 { color: var(--cyan); font-size: 13px; margin-bottom: 10px; }
+  .review-pair .field-row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .review-pair .field-row:last-child { border-bottom: none; }
+  .review-pair .field-key { color: var(--muted); }
+  .review-score { text-align: center; padding: 12px; border-top: 1px solid var(--border); margin-top: 16px; }
+
+  @media (max-width: 900px) {
+    .charts-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">MDM</div>
+  <button class="active" onclick="showTab('overview',this)">Overview</button>
+  <button onclick="showTab('golden',this)">Golden Records</button>
+  <button onclick="showTab('sources',this)">Source Records</button>
+  <button onclick="showTab('conflicts',this)">Conflicts</button>
+  <button onclick="showTab('review',this)">Review Queue</button>
+</nav>
+
+<!-- ===== OVERVIEW ===== -->
+<div id="overview" class="section active">
+  <div class="section-title">Pipeline <span>Overview</span></div>
+  <div class="stat-grid" id="stat-grid"></div>
+  <div class="charts-row">
+    <div class="chart-box"><h3>Records per Source System</h3><canvas id="chart-sources"></canvas></div>
+    <div class="chart-box"><h3>Merge Outcomes</h3><canvas id="chart-outcomes"></canvas></div>
+    <div class="chart-box"><h3>Match Score Distribution</h3><canvas id="chart-scores"></canvas></div>
+  </div>
+</div>
+
+<!-- ===== GOLDEN RECORDS ===== -->
+<div id="golden" class="section">
+  <div class="section-title">Golden <span>Records</span></div>
+  <div class="filter-bar">
+    <input id="golden-search" type="text" placeholder="Search name, email..." oninput="renderGolden()">
+  </div>
+  <div class="table-wrap">
+    <table id="golden-table">
+      <thead><tr>
+        <th onclick="sortGolden('full_name')">Name</th>
+        <th onclick="sortGolden('email')">Email</th>
+        <th onclick="sortGolden('phone')">Phone</th>
+        <th onclick="sortGolden('address')">Address</th>
+        <th onclick="sortGolden('_source_count')">Sources</th>
+        <th onclick="sortGolden('_match_score')">Score</th>
+        <th>Systems</th>
+      </tr></thead>
+      <tbody id="golden-tbody"></tbody>
+    </table>
+  </div>
+  <div id="drill-panel">
+    <button id="drill-close" onclick="closeDrill()">✕ Close</button>
+    <h2 id="drill-name"></h2>
+    <div class="meta" id="drill-meta"></div>
+    <div id="drill-content"></div>
+  </div>
+</div>
+
+<!-- ===== SOURCE RECORDS ===== -->
+<div id="sources" class="section">
+  <div class="section-title">All Source <span>Records</span></div>
+  <div class="filter-bar">
+    <button class="active" onclick="filterSources('all',this)">All</button>
+    <button onclick="filterSources('crm',this)">CRM</button>
+    <button onclick="filterSources('marketing',this)">Marketing</button>
+    <button onclick="filterSources('erp',this)">ERP</button>
+    <input id="source-search" type="text" placeholder="Search..." oninput="renderSources()">
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>System</th><th>Name</th><th>Email</th><th>Phone</th><th>Address</th>
+        <th>Updated</th><th>Merged Into</th><th>Tier</th>
+      </tr></thead>
+      <tbody id="sources-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===== CONFLICTS ===== -->
+<div id="conflicts" class="section">
+  <div class="section-title">Field <span>Conflicts</span></div>
+  <div class="filter-bar">
+    <input id="conflict-search" type="text" placeholder="Filter by name, source..." oninput="renderConflicts()">
+    <button class="active" onclick="filterConflicts('all',this)">All Fields</button>
+    <button onclick="filterConflicts('full_name',this)">Name</button>
+    <button onclick="filterConflicts('email',this)">Email</button>
+    <button onclick="filterConflicts('phone',this)">Phone</button>
+    <button onclick="filterConflicts('address',this)">Address</button>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>Field</th><th>Golden Record</th>
+        <th>Winning Value</th><th>Source</th><th>Date</th>
+        <th>Overridden Value</th><th>Source</th><th>Date</th>
+      </tr></thead>
+      <tbody id="conflicts-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===== REVIEW QUEUE ===== -->
+<div id="review" class="section">
+  <div class="section-title">Review <span>Queue</span></div>
+  <div id="review-content"></div>
+</div>
+
+<script>
+const DATA = {"stats": {"total_sources": 13, "total_golden": 8, "total_merges": 3, "total_conflicts": 14}, "source_counts": {"crm": 5, "marketing": 5, "erp": 3}, "merge_outcomes": {"Merged": 8, "Singleton": 5}, "auto_scores": [98.62, 98.62, 88.57, 90.66, 80.0, 80.0, 86.27, 86.27], "golden_records": [{"golden_id": "037c3ec2-b720-4ca5-883b-731b3d0fd868", "full_name": "Alice Johnson", "email": "alice.johnson@marketing.com", "phone": "5551002000", "address": "12 Oak Street, Springfield, IL 62701", "_source_count": 4, "_source_ids": ["crm", "crm", "marketing", "marketing"], "_source_record_ids": ["ac1ddfae-3b35-4c0a-87b9-1ba9b13f95d8", "5a2e7a57-abb0-402f-9ae0-4bc348c5a126", "63dfe855-9b6a-4e31-a830-aaa4fe7916ff", "0a5fc64d-de57-4f2e-8ec9-2cfea96bb3bc"], "_match_score": 98.62, "_created_at": "2026-03-04T13:19:08.598069+00:00"}, {"golden_id": "09e9091c-b315-447b-92a0-fed56fed3516", "full_name": "Bob Martinez", "email": "bob.m@crm.com", "phone": "555-200-3000", "address": "45 Elm Ave, Chicago, IL 60601", "_source_count": 2, "_source_ids": ["crm", "erp"], "_source_record_ids": ["f8346c04-97fb-4879-8f47-9098ea346873", "0f0d63c6-23fb-4be8-950f-13784dd38289"], "_match_score": 80.0, "_created_at": "2026-03-04T13:19:08.631311+00:00"}, {"golden_id": "411a51ec-08bb-43b1-9999-90e19e3b89de", "full_name": "Davd Lee", "email": "d.lee@marketing.com", "phone": "5554005000", "address": "99 Pine Road, Rockford, IL 61101", "_source_count": 2, "_source_ids": ["crm", "marketing"], "_source_record_ids": ["124d7a7e-9715-423f-b487-fe40a1a0689d", "917d8606-d232-4db2-a714-f146f9fcbfca"], "_match_score": 86.27, "_created_at": "2026-03-04T13:19:08.664238+00:00"}, {"golden_id": "6c6eb865-3272-4822-a65e-b524b947715d", "full_name": "Grace Kim", "email": "grace.k@erp.internal", "phone": "555-800-9000", "address": "55 Walnut Dr, Evanston, IL 60201", "_source_count": 1, "_source_ids": ["erp"], "_source_record_ids": ["f913e14f-4020-4bc5-a1a2-de21d1e7df31"], "_match_score": 0.0, "_created_at": "2026-03-04T13:19:08.686548+00:00"}, {"golden_id": "9b5374fd-5006-4b36-b7c7-937e11bdac34", "full_name": "Hank Patel", "email": "hank.p@erp.internal", "phone": "555-900-1111", "address": "67 Spruce Pl, Joliet, IL 60432", "_source_count": 1, "_source_ids": ["erp"], "_source_record_ids": ["e43581fd-3825-44ba-94e6-e9d8bdfd1ac1"], "_match_score": 0.0, "_created_at": "2026-03-04T13:19:08.713947+00:00"}, {"golden_id": "588fd1f4-b0cc-41e3-995f-d725ce31adc8", "full_name": "Frank Torres", "email": "frank.t@marketing.com", "phone": "5557008000", "address": "21 Birch Ct, Aurora, IL 60505", "_source_count": 1, "_source_ids": ["marketing"], "_source_record_ids": ["0519125b-2e64-4887-b166-40daabbc41f9"], "_match_score": 0.0, "_created_at": "2026-03-04T13:19:08.740870+00:00"}, {"golden_id": "d017110b-282c-47f3-9377-b209a8bbbad7", "full_name": "Carol Williams", "email": "carol.w@crm.com", "phone": "555-300-4000", "address": "78 Maple Blvd, Peoria, IL 61602", "_source_count": 1, "_source_ids": ["crm"], "_source_record_ids": ["7c56c555-91aa-48d9-9721-a41563800f20"], "_match_score": 0.0, "_created_at": "2026-03-04T13:19:08.767881+00:00"}, {"golden_id": "90d227fb-ded5-4196-aef7-e8714d49aa32", "full_name": "Emily Chen", "email": "emily.c@marketing.com", "phone": "5556007000", "address": "33 Cedar Ln, Naperville, IL 60540", "_source_count": 1, "_source_ids": ["marketing"], "_source_record_ids": ["3cad6edf-0a09-4196-9563-4594ce2c182b"], "_match_score": 0.0, "_created_at": "2026-03-04T13:19:08.798229+00:00"}], "source_records": [{"full_name": "Alice Johnson", "email": "alice.j@crm.com", "phone": "555-100-2000", "address": "12 Oak St, Springfield, IL 62701", "updated_at": "2024-06-01", "_source_system": "crm", "_row_index": 0, "golden_id": "037c3ec2-b720-4ca5-883b-731b3d0fd868", "match_tier": "AUTO_MERGE", "composite_score": 98.62}, {"full_name": "Bob Martinez", "email": "bob.m@crm.com", "phone": "555-200-3000", "address": "45 Elm Ave, Chicago, IL 60601", "updated_at": "2024-05-15", "_source_system": "crm", "_row_index": 1, "golden_id": "09e9091c-b315-447b-92a0-fed56fed3516", "match_tier": "AUTO_MERGE", "composite_score": 80.0}, {"full_name": "Carol Williams", "email": "carol.w@crm.com", "phone": "555-300-4000", "address": "78 Maple Blvd, Peoria, IL 61602", "updated_at": "2024-07-20", "_source_system": "crm", "_row_index": 2, "golden_id": "d017110b-282c-47f3-9377-b209a8bbbad7", "match_tier": "SINGLETON", "composite_score": 0.0}, {"full_name": "David Lee", "email": "david.lee@crm.com", "phone": "555-400-5000", "address": "99 Pine Rd, Rockford, IL 61101", "updated_at": "2024-03-10", "_source_system": "crm", "_row_index": 3, "golden_id": "411a51ec-08bb-43b1-9999-90e19e3b89de", "match_tier": "AUTO_MERGE", "composite_score": 86.27}, {"full_name": "Johnson Alice", "email": "alice.j2@crm.com", "phone": "555-100-2000", "address": "12 Oak Street, Springfield IL 62701", "updated_at": "2024-06-02", "_source_system": "crm", "_row_index": 4, "golden_id": "037c3ec2-b720-4ca5-883b-731b3d0fd868", "match_tier": "AUTO_MERGE", "composite_score": 98.62}, {"full_name": "Alice Johnson", "email": "alice.johnson@marketing.com", "phone": 5551002000, "address": "12 Oak Street, Springfield, IL 62701", "updated_at": "2024-08-15", "_source_system": "marketing", "_row_index": 0, "golden_id": "037c3ec2-b720-4ca5-883b-731b3d0fd868", "match_tier": "AUTO_MERGE", "composite_score": 88.57}, {"full_name": "Davd Lee", "email": "d.lee@marketing.com", "phone": 5554005000, "address": "99 Pine Road, Rockford, IL 61101", "updated_at": "2024-04-01", "_source_system": "marketing", "_row_index": 1, "golden_id": "411a51ec-08bb-43b1-9999-90e19e3b89de", "match_tier": "AUTO_MERGE", "composite_score": 86.27}, {"full_name": "Emily Chen", "email": "emily.c@marketing.com", "phone": 5556007000, "address": "33 Cedar Ln, Naperville, IL 60540", "updated_at": "2024-09-01", "_source_system": "marketing", "_row_index": 2, "golden_id": "90d227fb-ded5-4196-aef7-e8714d49aa32", "match_tier": "SINGLETON", "composite_score": 0.0}, {"full_name": "Frank Torres", "email": "frank.t@marketing.com", "phone": 5557008000, "address": "21 Birch Ct, Aurora, IL 60505", "updated_at": "2024-02-28", "_source_system": "marketing", "_row_index": 3, "golden_id": "90d227fb-ded5-4196-aef7-e8714d49aa32", "match_tier": "SINGLETON", "composite_score": 0.0}, {"full_name": "Alice Johnson", "email": "alice.j2@marketing.com", "phone": 5551002000, "address": "12 Oak St, Springfield IL 62701", "updated_at": "2024-01-10", "_source_system": "marketing", "_row_index": 4, "golden_id": "037c3ec2-b720-4ca5-883b-731b3d0fd868", "match_tier": "AUTO_MERGE", "composite_score": 90.66}, {"full_name": "Bob Martinez", "email": "b.martinez@erp.internal", "phone": "+1-555-200-3000", "address": "45 Elm Avenue, Chicago, IL 60601", "updated_at": "2023-11-20", "_source_system": "erp", "_row_index": 0, "golden_id": "09e9091c-b315-447b-92a0-fed56fed3516", "match_tier": "AUTO_MERGE", "composite_score": 80.0}, {"full_name": "Grace Kim", "email": "grace.k@erp.internal", "phone": "555-800-9000", "address": "55 Walnut Dr, Evanston, IL 60201", "updated_at": "2024-10-05", "_source_system": "erp", "_row_index": 1, "golden_id": "9b5374fd-5006-4b36-b7c7-937e11bdac34", "match_tier": "SINGLETON", "composite_score": 0.0}, {"full_name": "Hank Patel", "email": "hank.p@erp.internal", "phone": "555-900-1111", "address": "67 Spruce Pl, Joliet, IL 60432", "updated_at": "2024-08-30", "_source_system": "erp", "_row_index": 2, "golden_id": "9b5374fd-5006-4b36-b7c7-937e11bdac34", "match_tier": "SINGLETON", "composite_score": 0.0}], "conflicts": [{"golden_id": "037c3ec2-b720-4ca5-883b-731b3d0fd868", "field": "full_name", "winning_value": "Alice Johnson", "winning_source": "marketing", "winning_updated_at": "2024-08-15", "overridden_value": "Johnson Alice", "overridden_source": "crm", "overridden_updated_at": "2024-06-02"}, {"golden_id": "037c3ec2-b720-4ca5-883b-731b3d0fd868", "field": "email", "winning_value": "alice.johnson@marketing.com", "winning_source": "marketing", "winning_updated_at": "2024-08-15", "overridden_value": "alice.j@crm.com", "overridden_source": "crm", "overridden_updated_at": "2024-06-01"}, {"golden_id": "037c3ec2-b720-4ca5-883b-731b3d0fd868", "field": "email", "winning_value": "alice.johnson@marketing.com", "winning_source": "marketing", "winning_updated_at": "2024-08-15", "overridden_value": "alice.j2@crm.com", "overridden_source": "crm", "overridden_updated_at": "2024-06-02"}, {"golden_id": "037c3ec2-b720-4ca5-883b-731b3d0fd868", "field": "phone", "winning_value": "5551002000", "winning_source": "marketing", "winning_updated_at": "2024-08-15", "overridden_value": "555-100-2000", "overridden_source": "crm", "overridden_updated_at": "2024-06-01"}, {"golden_id": "037c3ec2-b720-4ca5-883b-731b3d0fd868", "field": "phone", "winning_value": "5551002000", "winning_source": "marketing", "winning_updated_at": "2024-08-15", "overridden_value": "555-100-2000", "overridden_source": "crm", "overridden_updated_at": "2024-06-02"}, {"golden_id": "037c3ec2-b720-4ca5-883b-731b3d0fd868", "field": "address", "winning_value": "12 Oak Street, Springfield, IL 62701", "winning_source": "marketing", "winning_updated_at": "2024-08-15", "overridden_value": "12 Oak St, Springfield, IL 62701", "overridden_source": "crm", "overridden_updated_at": "2024-06-01"}, {"golden_id": "037c3ec2-b720-4ca5-883b-731b3d0fd868", "field": "address", "winning_value": "12 Oak Street, Springfield, IL 62701", "winning_source": "marketing", "winning_updated_at": "2024-08-15", "overridden_value": "12 Oak Street, Springfield IL 62701", "overridden_source": "crm", "overridden_updated_at": "2024-06-02"}, {"golden_id": "09e9091c-b315-447b-92a0-fed56fed3516", "field": "email", "winning_value": "bob.m@crm.com", "winning_source": "crm", "winning_updated_at": "2024-05-15", "overridden_value": "b.martinez@erp.internal", "overridden_source": "erp", "overridden_updated_at": "2023-11-20"}, {"golden_id": "09e9091c-b315-447b-92a0-fed56fed3516", "field": "phone", "winning_value": "555-200-3000", "winning_source": "crm", "winning_updated_at": "2024-05-15", "overridden_value": "+1-555-200-3000", "overridden_source": "erp", "overridden_updated_at": "2023-11-20"}, {"golden_id": "09e9091c-b315-447b-92a0-fed56fed3516", "field": "address", "winning_value": "45 Elm Ave, Chicago, IL 60601", "winning_source": "crm", "winning_updated_at": "2024-05-15", "overridden_value": "45 Elm Avenue, Chicago, IL 60601", "overridden_source": "erp", "overridden_updated_at": "2023-11-20"}, {"golden_id": "411a51ec-08bb-43b1-9999-90e19e3b89de", "field": "full_name", "winning_value": "Davd Lee", "winning_source": "marketing", "winning_updated_at": "2024-04-01", "overridden_value": "David Lee", "overridden_source": "crm", "overridden_updated_at": "2024-03-10"}, {"golden_id": "411a51ec-08bb-43b1-9999-90e19e3b89de", "field": "email", "winning_value": "d.lee@marketing.com", "winning_source": "marketing", "winning_updated_at": "2024-04-01", "overridden_value": "david.lee@crm.com", "overridden_source": "crm", "overridden_updated_at": "2024-03-10"}, {"golden_id": "411a51ec-08bb-43b1-9999-90e19e3b89de", "field": "phone", "winning_value": "5554005000", "winning_source": "marketing", "winning_updated_at": "2024-04-01", "overridden_value": "555-400-5000", "overridden_source": "crm", "overridden_updated_at": "2024-03-10"}, {"golden_id": "411a51ec-08bb-43b1-9999-90e19e3b89de", "field": "address", "winning_value": "99 Pine Road, Rockford, IL 61101", "winning_source": "marketing", "winning_updated_at": "2024-04-01", "overridden_value": "99 Pine Rd, Rockford, IL 61101", "overridden_source": "crm", "overridden_updated_at": "2024-03-10"}], "review_queue": [], "golden_source_map": {"037c3ec2-b720-4ca5-883b-731b3d0fd868": [{"full_name": "Alice Johnson", "email": "alice.j@crm.com", "phone": "555-100-2000", "address": "12 Oak St, Springfield, IL 62701", "updated_at": "2024-06-01", "_source_system": "crm", "_row_index": 0, "golden_id": "037c3ec2-b720-4ca5-883b-731b3d0fd868", "match_tier": "AUTO_MERGE", "composite_score": 98.62}, {"full_name": "Johnson Alice", "email": "alice.j2@crm.com", "phone": "555-100-2000", "address": "12 Oak Street, Springfield IL 62701", "updated_at": "2024-06-02", "_source_system": "crm", "_row_index": 4, "golden_id": "037c3ec2-b720-4ca5-883b-731b3d0fd868", "match_tier": "AUTO_MERGE", "composite_score": 98.62}, {"full_name": "Alice Johnson", "email": "alice.johnson@marketing.com", "phone": 5551002000, "address": "12 Oak Street, Springfield, IL 62701", "updated_at": "2024-08-15", "_source_system": "marketing", "_row_index": 0, "golden_id": "037c3ec2-b720-4ca5-883b-731b3d0fd868", "match_tier": "AUTO_MERGE", "composite_score": 88.57}, {"full_name": "Alice Johnson", "email": "alice.j2@marketing.com", "phone": 5551002000, "address": "12 Oak St, Springfield IL 62701", "updated_at": "2024-01-10", "_source_system": "marketing", "_row_index": 4, "golden_id": "037c3ec2-b720-4ca5-883b-731b3d0fd868", "match_tier": "AUTO_MERGE", "composite_score": 90.66}], "09e9091c-b315-447b-92a0-fed56fed3516": [{"full_name": "Bob Martinez", "email": "bob.m@crm.com", "phone": "555-200-3000", "address": "45 Elm Ave, Chicago, IL 60601", "updated_at": "2024-05-15", "_source_system": "crm", "_row_index": 1, "golden_id": "09e9091c-b315-447b-92a0-fed56fed3516", "match_tier": "AUTO_MERGE", "composite_score": 80.0}, {"full_name": "Bob Martinez", "email": "b.martinez@erp.internal", "phone": "+1-555-200-3000", "address": "45 Elm Avenue, Chicago, IL 60601", "updated_at": "2023-11-20", "_source_system": "erp", "_row_index": 0, "golden_id": "09e9091c-b315-447b-92a0-fed56fed3516", "match_tier": "AUTO_MERGE", "composite_score": 80.0}], "411a51ec-08bb-43b1-9999-90e19e3b89de": [{"full_name": "David Lee", "email": "david.lee@crm.com", "phone": "555-400-5000", "address": "99 Pine Rd, Rockford, IL 61101", "updated_at": "2024-03-10", "_source_system": "crm", "_row_index": 3, "golden_id": "411a51ec-08bb-43b1-9999-90e19e3b89de", "match_tier": "AUTO_MERGE", "composite_score": 86.27}, {"full_name": "Davd Lee", "email": "d.lee@marketing.com", "phone": 5554005000, "address": "99 Pine Road, Rockford, IL 61101", "updated_at": "2024-04-01", "_source_system": "marketing", "_row_index": 1, "golden_id": "411a51ec-08bb-43b1-9999-90e19e3b89de", "match_tier": "AUTO_MERGE", "composite_score": 86.27}], "6c6eb865-3272-4822-a65e-b524b947715d": [], "9b5374fd-5006-4b36-b7c7-937e11bdac34": [{"full_name": "Grace Kim", "email": "grace.k@erp.internal", "phone": "555-800-9000", "address": "55 Walnut Dr, Evanston, IL 60201", "updated_at": "2024-10-05", "_source_system": "erp", "_row_index": 1, "golden_id": "9b5374fd-5006-4b36-b7c7-937e11bdac34", "match_tier": "SINGLETON", "composite_score": 0.0}, {"full_name": "Hank Patel", "email": "hank.p@erp.internal", "phone": "555-900-1111", "address": "67 Spruce Pl, Joliet, IL 60432", "updated_at": "2024-08-30", "_source_system": "erp", "_row_index": 2, "golden_id": "9b5374fd-5006-4b36-b7c7-937e11bdac34", "match_tier": "SINGLETON", "composite_score": 0.0}], "588fd1f4-b0cc-41e3-995f-d725ce31adc8": [], "d017110b-282c-47f3-9377-b209a8bbbad7": [{"full_name": "Carol Williams", "email": "carol.w@crm.com", "phone": "555-300-4000", "address": "78 Maple Blvd, Peoria, IL 61602", "updated_at": "2024-07-20", "_source_system": "crm", "_row_index": 2, "golden_id": "d017110b-282c-47f3-9377-b209a8bbbad7", "match_tier": "SINGLETON", "composite_score": 0.0}], "90d227fb-ded5-4196-aef7-e8714d49aa32": [{"full_name": "Emily Chen", "email": "emily.c@marketing.com", "phone": 5556007000, "address": "33 Cedar Ln, Naperville, IL 60540", "updated_at": "2024-09-01", "_source_system": "marketing", "_row_index": 2, "golden_id": "90d227fb-ded5-4196-aef7-e8714d49aa32", "match_tier": "SINGLETON", "composite_score": 0.0}, {"full_name": "Frank Torres", "email": "frank.t@marketing.com", "phone": 5557008000, "address": "21 Birch Ct, Aurora, IL 60505", "updated_at": "2024-02-28", "_source_system": "marketing", "_row_index": 3, "golden_id": "90d227fb-ded5-4196-aef7-e8714d49aa32", "match_tier": "SINGLETON", "composite_score": 0.0}]}, "fields": ["full_name", "email", "phone", "address"], "config": {"thresholds": {"auto_merge": 85, "review": 60}, "weights": {"full_name": 0.35, "email": 0.3, "phone": 0.2, "address": 0.15}}};
+
+// ── Helpers ──────────────────────────────────────────────────────────────
+function showTab(id, el) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  el.classList.add('active');
+}
+
+function scoreBadge(s) {
+  if (!s || s === 0) return '<span class="score-badge score-none">Singleton</span>';
+  const cls = s >= 85 ? 'score-high' : 'score-mid';
+  return `<span class="score-badge ${cls}">${s.toFixed(1)}</span>`;
+}
+
+function systemChip(sys) {
+  return `<span class="chip chip-${sys}">${sys}</span>`;
+}
+
+function goldenName(gid) {
+  const g = DATA.golden_records.find(r => r.golden_id === gid);
+  return g ? (g.full_name || '—') : '—';
+}
+
+// ── Overview ──────────────────────────────────────────────────────────────
+function initOverview() {
+  const s = DATA.stats;
+  const statDefs = [
+    { label: 'Source Records', value: s.total_sources, sub: 'Across all systems' },
+    { label: 'Golden Records', value: s.total_golden, sub: 'Unique entities' },
+    { label: 'Merges', value: s.total_merges, sub: 'Multi-source groups' },
+    { label: 'Conflicts', value: s.total_conflicts, sub: 'Field-level overrides' },
+  ];
+  document.getElementById('stat-grid').innerHTML = statDefs.map(d => `
+    <div class="stat-card">
+      <div class="label">${d.label}</div>
+      <div class="value">${d.value}</div>
+      <div class="sub">${d.sub}</div>
+    </div>`).join('');
+
+  // Bar: records per source
+  const srcLabels = Object.keys(DATA.source_counts);
+  const srcColors = srcLabels.map(l => l === 'crm' ? '#42a5f5' : l === 'marketing' ? '#ce93d8' : '#ffa726');
+  new Chart(document.getElementById('chart-sources'), {
+    type: 'bar',
+    data: {
+      labels: srcLabels.map(l => l.toUpperCase()),
+      datasets: [{ data: Object.values(DATA.source_counts), backgroundColor: srcColors, borderRadius: 5 }]
+    },
+    options: { plugins: { legend: { display: false } }, scales: {
+      x: { grid: { color: '#1e3022' }, ticks: { color: '#78909c' } },
+      y: { grid: { color: '#1e3022' }, ticks: { color: '#78909c', stepSize: 1 } }
+    }}
+  });
+
+  // Donut: merge outcomes
+  new Chart(document.getElementById('chart-outcomes'), {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(DATA.merge_outcomes),
+      datasets: [{ data: Object.values(DATA.merge_outcomes), backgroundColor: ['#69f0ae', '#37474f'], borderColor: '#0a0f0b', borderWidth: 3 }]
+    },
+    options: { plugins: { legend: { labels: { color: '#78909c', boxWidth: 14 } } }, cutout: '65%' }
+  });
+
+  // Histogram: score distribution
+  const scores = DATA.auto_scores;
+  const buckets = [70,75,80,85,90,95,100];
+  const counts = new Array(buckets.length - 1).fill(0);
+  scores.forEach(s => {
+    for (let i = 0; i < buckets.length - 1; i++) {
+      if (s >= buckets[i] && s < buckets[i+1]) { counts[i]++; break; }
+    }
+  });
+  const histLabels = buckets.slice(0,-1).map((b,i) => `${b}–${buckets[i+1]}`);
+  new Chart(document.getElementById('chart-scores'), {
+    type: 'bar',
+    data: {
+      labels: histLabels,
+      datasets: [{ data: counts, backgroundColor: '#00e5ff88', borderColor: '#00e5ff', borderWidth: 1, borderRadius: 4 }]
+    },
+    options: { plugins: { legend: { display: false } }, scales: {
+      x: { grid: { color: '#1e3022' }, ticks: { color: '#78909c', font: { size: 11 } } },
+      y: { grid: { color: '#1e3022' }, ticks: { color: '#78909c', stepSize: 1 } }
+    }}
+  });
+}
+
+// ── Golden Records ────────────────────────────────────────────────────────
+let goldenSort = { key: '_match_score', dir: -1 };
+
+function sortGolden(key) {
+  if (goldenSort.key === key) goldenSort.dir *= -1;
+  else { goldenSort.key = key; goldenSort.dir = -1; }
+  renderGolden();
+}
+
+function renderGolden() {
+  const q = (document.getElementById('golden-search').value || '').toLowerCase();
+  let rows = DATA.golden_records.filter(r => {
+    if (!q) return true;
+    return [r.full_name, r.email, r.phone, r.address].some(v => v && v.toLowerCase().includes(q));
+  });
+  rows.sort((a, b) => {
+    const av = a[goldenSort.key] ?? '';
+    const bv = b[goldenSort.key] ?? '';
+    return typeof av === 'number' ? (av - bv) * goldenSort.dir : String(av).localeCompare(String(bv)) * goldenSort.dir;
+  });
+
+  document.getElementById('golden-tbody').innerHTML = rows.map(r => `
+    <tr onclick="openDrill('${r.golden_id}')" data-gid="${r.golden_id}">
+      <td><strong>${r.full_name || '—'}</strong></td>
+      <td>${r.email || '—'}</td>
+      <td>${r.phone || '—'}</td>
+      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.address || ''}">${r.address || '—'}</td>
+      <td><span style="color:var(--cyan);font-weight:700">${r._source_count}</span></td>
+      <td>${scoreBadge(r._match_score)}</td>
+      <td>${[...new Set(r._source_ids)].map(systemChip).join('')}</td>
+    </tr>`).join('') || '<tr><td colspan="7" class="empty">No records</td></tr>';
+}
+
+function openDrill(gid) {
+  document.querySelectorAll('#golden-tbody tr').forEach(r => r.classList.remove('selected'));
+  const sel = document.querySelector(`#golden-tbody tr[data-gid="${gid}"]`);
+  if (sel) sel.classList.add('selected');
+
+  const g = DATA.golden_records.find(r => r.golden_id === gid);
+  const contrib = DATA.golden_source_map[gid] || [];
+  const FIELDS = DATA.fields;
+
+  document.getElementById('drill-name').textContent = g.full_name || '—';
+  document.getElementById('drill-meta').innerHTML =
+    `Golden ID: <code style="color:var(--cyan)">${gid}</code> &nbsp;|&nbsp; ` +
+    `Sources: ${g._source_count} &nbsp;|&nbsp; Score: ${g._match_score > 0 ? g._match_score.toFixed(2) : 'Singleton'} &nbsp;|&nbsp; ` +
+    `Systems: ${[...new Set(g._source_ids)].map(systemChip).join('')}`;
+
+  if (contrib.length === 0) {
+    document.getElementById('drill-content').innerHTML = '<div class="empty"><div class="icon">📭</div>No source records found.</div>';
+  } else {
+    // Determine winning value per field
+    const winners = {};
+    FIELDS.forEach(f => { winners[f] = g[f]; });
+
+    // Build table: rows = source records, cols = fields
+    const header = `<tr><th>System</th><th>Row</th>${FIELDS.map(f => `<th>${f}</th>`).join('')}<th>Updated</th></tr>`;
+    const bodyRows = contrib.map(src => {
+      const cells = FIELDS.map(f => {
+        const val = src[f];
+        const win = winners[f];
+        let cls = 'cell-same';
+        let badge = '';
+        let display = val || '<span style="color:var(--muted)">—</span>';
+        if (val && win) {
+          if (val === win) { cls = 'cell-win'; badge = '<span class="chip chip-win">WINNER</span> '; }
+          else { cls = 'cell-override'; display = `<span class="strike">${val}</span>`; badge = '<span class="chip chip-override">OVERRIDDEN</span> '; }
+        } else if (!val) {
+          display = '<span style="color:var(--muted)">—</span>';
+        }
+        return `<td class="${cls}" title="Updated: ${src.updated_at || ''}">${badge}${display}</td>`;
+      }).join('');
+      return `<tr><td>${systemChip(src._source_system)}</td><td style="color:var(--muted)">${src._row_index}</td>${cells}<td style="color:var(--muted);font-size:12px">${src.updated_at || '—'}</td></tr>`;
+    }).join('');
+
+    document.getElementById('drill-content').innerHTML = `
+      <table class="drill-field-table">
+        <thead>${header}</thead>
+        <tbody>${bodyRows}</tbody>
+      </table>`;
+  }
+
+  document.getElementById('drill-panel').classList.add('open');
+  document.getElementById('drill-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function closeDrill() {
+  document.getElementById('drill-panel').classList.remove('open');
+  document.querySelectorAll('#golden-tbody tr').forEach(r => r.classList.remove('selected'));
+}
+
+// ── Source Records ────────────────────────────────────────────────────────
+let sourceFilter = 'all';
+
+function filterSources(sys, el) {
+  sourceFilter = sys;
+  document.querySelectorAll('.filter-bar button').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderSources();
+}
+
+function renderSources() {
+  const q = (document.getElementById('source-search').value || '').toLowerCase();
+  let rows = DATA.source_records.filter(r => {
+    if (sourceFilter !== 'all' && r._source_system !== sourceFilter) return false;
+    if (!q) return true;
+    return [r.full_name, r.email, r.phone, r.address].some(v => v && v.toLowerCase().includes(q));
+  });
+
+  document.getElementById('sources-tbody').innerHTML = rows.map(r => {
+    const gname = r.golden_id ? goldenName(r.golden_id) : '—';
+    const tierBadge = r.match_tier === 'SINGLETON'
+      ? '<span class="chip chip-singleton">Singleton</span>'
+      : `<span class="chip chip-merged">${r.match_tier}</span>`;
+    return `<tr>
+      <td>${systemChip(r._source_system)}</td>
+      <td>${r.full_name || '—'}</td>
+      <td>${r.email || '—'}</td>
+      <td>${r.phone || '—'}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.address||''}">${r.address || '—'}</td>
+      <td style="color:var(--muted);font-size:12px">${r.updated_at || '—'}</td>
+      <td style="color:var(--cyan)">${gname}</td>
+      <td>${tierBadge}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="8" class="empty">No records</td></tr>';
+}
+
+// ── Conflicts ─────────────────────────────────────────────────────────────
+let conflictFieldFilter = 'all';
+
+function filterConflicts(field, el) {
+  conflictFieldFilter = field;
+  document.querySelectorAll('#conflicts .filter-bar button').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderConflicts();
+}
+
+function renderConflicts() {
+  const q = (document.getElementById('conflict-search').value || '').toLowerCase();
+  const rows = DATA.conflicts.filter(r => {
+    if (conflictFieldFilter !== 'all' && r.field !== conflictFieldFilter) return false;
+    if (!q) return true;
+    const gname = goldenName(r.golden_id);
+    return [gname, r.winning_source, r.overridden_source, r.winning_value, r.overridden_value]
+      .some(v => v && String(v).toLowerCase().includes(q));
+  });
+
+  document.getElementById('conflicts-tbody').innerHTML = rows.map(r => `
+    <tr data-field="${r.field}">
+      <td><strong>${r.field}</strong></td>
+      <td style="color:var(--cyan)">${goldenName(r.golden_id)}</td>
+      <td style="color:var(--green)">${r.winning_value || '—'}</td>
+      <td>${systemChip(r.winning_source)}</td>
+      <td style="color:var(--muted);font-size:12px">${r.winning_updated_at || '—'}</td>
+      <td style="color:var(--amber);text-decoration:line-through">${r.overridden_value || '—'}</td>
+      <td>${systemChip(r.overridden_source)}</td>
+      <td style="color:var(--muted);font-size:12px">${r.overridden_updated_at || '—'}</td>
+    </tr>`).join('') || '<tr><td colspan="8" class="empty">No conflicts</td></tr>';
+}
+
+// ── Review Queue ──────────────────────────────────────────────────────────
+function renderReview() {
+  const el = document.getElementById('review-content');
+  if (!DATA.review_queue || DATA.review_queue.length === 0) {
+    el.innerHTML = `<div class="empty"><div class="icon">✅</div><strong>No items in review queue.</strong><br><br><span style="color:var(--muted)">All candidate pairs were either auto-merged or rejected.</span></div>`;
+    return;
+  }
+  const SCORE_FIELDS = ['name_score','email_score','phone_score','address_score'];
+  el.innerHTML = DATA.review_queue.map(p => `
+    <div class="review-pair">
+      <div style="color:var(--amber);font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">
+        Review Pair — Composite Score: <strong>${p.composite_score?.toFixed(2) ?? '—'}</strong>
+      </div>
+      <div class="pair-grid">
+        <div>
+          <h4>${systemChip(p.source_a)} Record A</h4>
+          ${['full_name','email','phone','address'].map(f => `
+            <div class="field-row"><span class="field-key">${f}</span><span>${p[f+'_a'] || '—'}</span></div>`).join('')}
+        </div>
+        <div>
+          <h4>${systemChip(p.source_b)} Record B</h4>
+          ${['full_name','email','phone','address'].map(f => `
+            <div class="field-row"><span class="field-key">${f}</span><span>${p[f+'_b'] || '—'}</span></div>`).join('')}
+        </div>
+      </div>
+      <div class="review-score">
+        ${SCORE_FIELDS.map(sf => {
+          const label = sf.replace('_score','');
+          const val = p[sf] ?? 0;
+          const pct = Math.min(100, val);
+          return `<span style="display:inline-block;margin:4px 12px;font-size:12px">
+            <span style="color:var(--muted)">${label}:</span>
+            <span style="color:var(--cyan)">${val?.toFixed(1)}</span>
+          </span>`;
+        }).join('')}
+      </div>
+    </div>`).join('');
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+initOverview();
+renderGolden();
+renderSources();
+renderConflicts();
+renderReview();
+</script>
+</body>
+</html>
